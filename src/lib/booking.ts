@@ -19,6 +19,7 @@ import { clock, kr, longDate, normalizePhone } from "./format";
 import { getPaymentProvider, type PaymentProvider, type ProviderEvent } from "./payments";
 import { getSmsProvider, sendSms, type SmsProvider } from "./sms";
 import { addDays, fromZoned, toZoned, weekdayOf } from "./time";
+import { closeWaitlistForBooking, offerFreedTime } from "./waitlist";
 
 /** Hvor længe en tid holdes til kunden, mens depositum betales. */
 export const PAYMENT_HOLD_MIN = 15;
@@ -194,6 +195,7 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
       .returning();
     return created;
   });
+  await closeWaitlistForBooking(db, { customerId: booking.customerId, serviceId: service.id, date, bookingId: booking.id });
 
   if (booking.status === "confirmed") {
     await sendBookingSms(db, booking.id, "confirmation", deps);
@@ -241,6 +243,8 @@ export async function handlePaymentEvent(db: Db, reference: string, event: Provi
     }
     if (booking.status === "pending_payment") {
       await db.update(bookings).set({ status: "expired" }).where(eq(bookings.id, booking.id));
+      const salon = (await db.query.salons.findFirst({ where: eq(salons.id, booking.salonId) }))!;
+      await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps, booking);
     }
     return db.query.bookings.findFirst({ where: eq(bookings.id, booking.id) });
   }
@@ -326,6 +330,7 @@ export async function cancelBooking(
 
   await db.update(bookings).set({ status: "cancelled", cancelledAt: deps.now }).where(eq(bookings.id, booking.id));
   if (booking.status === "confirmed") await sendBookingSms(db, booking.id, "cancellation", deps);
+  await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps, booking);
   return { depositReturned: free };
 }
 

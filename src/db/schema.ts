@@ -59,6 +59,8 @@ export const customers = pgTable(
     name: text("name").notNull(),
     phone: text("phone").notNull(),
     email: text("email"),
+    // Salonens egne noter, fx farveformel. Kan komme med fra import.
+    note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("customers_salon_phone_idx").on(t.salonId, t.phone)],
@@ -136,9 +138,44 @@ export const smsMessages = pgTable("sms_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const WAITLIST_STATUSES = [
+  "waiting",
+  "booked", // fik en tid via ventelisten
+  "cancelled", // kunden eller salonen fjernede den
+] as const;
+export type WaitlistStatus = (typeof WAITLIST_STATUSES)[number];
+
+/**
+ * Kunder der gerne vil have en tid på en bestemt dag, som er fuldt booket.
+ * Bliver en tid ledig (fx ved aflysning), får de første i køen en SMS med et link, hvor de kan booke den.
+ */
+export const waitlistEntries = pgTable(
+  "waitlist_entries",
+  {
+    id: serial("id").primaryKey(),
+    salonId: integer("salon_id").notNull().references(() => salons.id),
+    serviceId: integer("service_id").notNull().references(() => services.id),
+    // null = alle frisører er fine.
+    staffId: integer("staff_id").references(() => staff.id),
+    customerId: integer("customer_id").notNull().references(() => customers.id),
+    // Dagen i salonens tidszone (YYYY-MM-DD) og et tidsrum i minutter efter midnat.
+    date: text("date").notNull(),
+    fromMin: integer("from_min").notNull().default(0),
+    toMin: integer("to_min").notNull().default(1440),
+    status: text("status").$type<WaitlistStatus>().notNull().default("waiting"),
+    // Hemmeligt token til kundens link, ligesom på bookinger.
+    token: text("token").notNull().unique(),
+    bookingId: integer("booking_id").references(() => bookings.id),
+    lastOfferAt: timestamp("last_offer_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("waitlist_salon_date_idx").on(t.salonId, t.date, t.status)],
+);
+
 export type Salon = typeof salons.$inferSelect;
 export type Staff = typeof staff.$inferSelect;
 export type Service = typeof services.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type WaitlistEntry = typeof waitlistEntries.$inferSelect;

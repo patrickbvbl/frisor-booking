@@ -8,6 +8,13 @@
       "when": 1791184671242,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791193400399,
+      "tag": "0001_waitlist_and_import",
+      "breakpoints": true
     }
   ]
 }

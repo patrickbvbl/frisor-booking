@@ -304,7 +304,12 @@ input[type="checkbox"] {
   gap: 8px;
 }
 
-.slots a {
+.slots a,
+.slots button {
+  display: block;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
   text-align: center;
   padding: 10px 0;
   border: 1px solid var(--line);
@@ -315,7 +320,8 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
-.slots a:hover {
+.slots a:hover,
+.slots button:hover {
   border-color: var(--accent);
   color: var(--accent);
 }

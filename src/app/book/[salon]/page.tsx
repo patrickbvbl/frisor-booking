@@ -4,7 +4,8 @@ import { getAvailability, getSalonBySlug, listServices, listStaff } from "@/lib/
 import { clock, kr, longDate, shortDate } from "@/lib/format";
 import { appDb, str } from "@/lib/server";
 import { addDays, isIsoDate, toZoned } from "@/lib/time";
-import { bookAction } from "./actions";
+import { PERIODS } from "@/lib/waitlist";
+import { bookAction, joinWaitlistAction } from "./actions";
 
 type Props = {
   params: Promise<{ salon: string }>;
@@ -125,6 +126,7 @@ export default async function BookPage({ params, searchParams }: Props) {
               today={today}
               now={now}
               href={href}
+              waitlist={str(q.venteliste) === "1"}
             />
           )}
 
@@ -198,8 +200,9 @@ async function TimePicker(props: {
   today: string;
   now: Date;
   href: (p: Record<string, string | undefined>) => string;
+  waitlist: boolean;
 }) {
-  const { db, salon, service, staffId, date, today, now, href } = props;
+  const { db, salon, service, staffId, date, today, now, href, waitlist } = props;
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(today, i));
   const slots = await getAvailability(db, { salon, service, staffId, date, now });
 
@@ -227,6 +230,45 @@ async function TimePicker(props: {
             </Link>
           ))}
         </div>
+      )}
+
+      {waitlist ? (
+        <form action={joinWaitlistAction} className="card stack" style={{ marginTop: 16 }} id="venteliste">
+          <h3 style={{ margin: 0 }}>Venteliste {longDate(date)}</h3>
+          <p className="muted small" style={{ margin: 0 }}>
+            Bliver en tid ledig, får du en SMS med et link. Den første der trykker, får tiden.
+          </p>
+          <input type="hidden" name="salon" value={salon.slug} />
+          <input type="hidden" name="serviceId" value={service.id} />
+          <input type="hidden" name="staffId" value={staffId ?? "any"} />
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="back" value={href({ dato: date, venteliste: "1" })} />
+          <label>
+            Hvornår passer det dig?
+            <select name="period" defaultValue="all">
+              {Object.entries(PERIODS).map(([key, p]) => (
+                <option key={key} value={key}>{p.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Navn
+            <input name="name" required minLength={2} autoComplete="name" />
+          </label>
+          <label>
+            Mobilnummer
+            <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="12 34 56 78" />
+          </label>
+          <button className="full" type="submit">Skriv mig på ventelisten</button>
+        </form>
+      ) : (
+        <p className="small" style={{ marginTop: 16 }}>
+          Ingen tid der passer?{" "}
+          <Link href={`${href({ dato: date, venteliste: "1" })}#venteliste`} scroll={false}>
+            Skriv dig på ventelisten for {longDate(date)}
+          </Link>
+          , så får du en SMS, hvis en tid bliver ledig.
+        </p>
       )}
     </section>
   );

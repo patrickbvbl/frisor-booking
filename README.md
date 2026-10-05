@@ -13,6 +13,13 @@ Første version (MVP) er bygget. Den dækker de fire ting, vi valgte at starte m
 | SMS-bekræftelse og påmindelse | `/admin/sms` | Logikken virker. Sendes ikke rigtigt endnu (stub), beskederne kan ses i SMS-loggen |
 | Depositum via MobilePay | `/pay/mock/...` | Logikken virker. Betaling er en testside (stub), indtil vi har MobilePay-nøgler |
 
+Anden runde fra researchen:
+
+| Funktion | Hvor | Status |
+|---|---|---|
+| Automatisk venteliste | Bookingsiden og `/admin/venteliste` | Virker. Kunden skriver sig på en fuld dag. Ved afbud får de første tre i køen en SMS, og den første der trykker, får tiden |
+| Import af kunder fra Planway, Fresha eller regneark | `/admin/kunder/import` | Virker med CSV. Kolonnerne genkendes automatisk, og der vises en oversigt før noget gemmes |
+
 Derudover: ydelser og arbejdstider kan redigeres under `/admin/indstillinger`, og kundelisten kan hentes som CSV under `/admin/kunder` ("dine kunder er dine").
 
 ## Kom i gang
@@ -71,6 +78,10 @@ Bookingsiden ligger derefter på `https://<projekt>.vercel.app/book/demo` og kal
 4. Aflyser kunden mindst 24 timer før (kan ændres pr. salon), frigives depositum. Senere end det beholder salonen det.
 5. Udebliver kunden, trækkes depositum. Aflyser salonen, får kunden det altid tilbage.
 
+**Venteliste** (`src/lib/waitlist.ts`): kunden vælger dag, ydelse, frisør (eller alle) og formiddag, eftermiddag eller hele dagen. Når en tid bliver ledig ved aflysning eller en betaling der fejler, får de første tre i køen, som den ledige tid passer til, en SMS med et link. Tiden holdes ikke, så den der først booker, får den, og de andre bliver stående på listen. Salonen kan også selv sende de ledige tider ud fra `/admin/venteliste`, fx efter at have givet en frisør ekstra timer. Booker kunden en tid samme dag på anden vis, lukkes pladsen automatisk.
+
+**Import af kunder** (`src/lib/import.ts`): læser CSV med komma, semikolon eller tabulator, også Excels Windows-tegnsæt. Kolonner som Navn, Fornavn og Efternavn, Mobil, Telefon, E-mail og Note genkendes på dansk og engelsk. Findes en kunde allerede (samme telefonnummer), beholdes navnet, og kun manglende e-mail og note udfyldes, så samme fil kan importeres flere gange. Excel-filer (.xlsx) skal gemmes som CSV først. Vi har ikke set en rigtig eksportfil fra Planway eller Fresha endnu, så kolonnenavnene bør tjekkes mod en rigtig fil.
+
 **Påmindelser** sendes 24 timer før til bekræftede tider, der er booket mere end et døgn i forvejen. `GET /api/cron/reminders` med `Authorization: Bearer $CRON_SECRET` kører dem, og det kan kaldes så ofte man vil uden dobbelte SMS'er. `vercel.json` kører dem én gang i døgnet kl. 7 UTC, da Vercels gratis plan ikke tillader oftere. Med Pro kan tidsplanen sættes til hver time (`0 * * * *`).
 
 ## Det mangler før rigtige kunder
@@ -79,7 +90,7 @@ Bookingsiden ligger derefter på `https://<projekt>.vercel.app/book/demo` og kal
 - **Rigtig MobilePay.** Implementér `PaymentProvider` i `src/lib/payments.ts` mod Vipps MobilePay ePayment API, og tilføj en webhook-route der kalder `handlePaymentEvent`. Kræver en MobilePay-aftale og nøgler.
 - **Flere saloner og logins pr. medarbejder.** Datamodellen har allerede `salon_id` overalt, men admin styrer i dag én salon (`SALON_SLUG`) med ét fælles kodeord.
 - **Booking fra salonens side**, fx når en kunde ringer. Indtil da kan personalet bruge bookingsiden.
-- Fra researchen, næste runde: venteliste der fylder huller via SMS, farve med virketid, genbooking efter fast interval og import fra Planway og Fresha.
+- Fra researchen, næste runde: farve med virketid og genbooking efter fast interval. Import af ydelser og fremtidige bookinger fra Planway og Fresha.
 
 ## Miljøvariabler
 
