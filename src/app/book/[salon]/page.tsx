@@ -62,7 +62,7 @@ export default async function BookPage({ params, searchParams }: Props) {
   const steps = (
     <div className="steps" aria-hidden>
       {["Ydelse", "Frisør", "Tid", "Dine oplysninger"].map((label, i) => (
-        <span key={label} className={i < step ? "done" : ""}>{label}</span>
+        <span key={label} className={i < step - 1 ? "done" : i === step - 1 ? "current" : ""}>{label}</span>
       ))}
     </div>
   );
@@ -133,6 +133,7 @@ export default async function BookPage({ params, searchParams }: Props) {
               now={now}
               href={href}
               waitlist={str(q.venteliste) === "1"}
+              dateChosen={isIsoDate(str(q.dato))}
             />
           )}
 
@@ -233,10 +234,27 @@ async function TimePicker(props: {
   now: Date;
   href: (p: Record<string, string | undefined>) => string;
   waitlist: boolean;
+  dateChosen: boolean;
 }) {
-  const { db, salon, service, staffId, date, today, now, href, waitlist } = props;
+  const { db, salon, service, staffId, today, now, href, waitlist, dateChosen } = props;
   const days = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(today, i));
-  const slots = await getAvailability(db, { salon, service, staffId, date, now });
+  let date = props.date;
+  let slots = await getAvailability(db, { salon, service, staffId, date, now });
+  // Er dagen fuld eller lukket, finder vi den første dag med ledige tider. Har kunden ikke selv valgt en dag, viser vi den direkte.
+  let nextFree: string | null = null;
+  if (slots.length === 0) {
+    for (const d of days.filter((d) => d > date)) {
+      const found = await getAvailability(db, { salon, service, staffId, date: d, now });
+      if (found.length > 0) {
+        if (dateChosen) nextFree = d;
+        else {
+          date = d;
+          slots = found;
+        }
+        break;
+      }
+    }
+  }
 
   return (
     <section>
@@ -252,7 +270,13 @@ async function TimePicker(props: {
       {slots.length === 0 ? (
         <div className="card muted">
           Ingen ledige tider denne dag.{" "}
-          <Link href={href({ dato: addDays(date, 1) })}>Prøv næste dag</Link>
+          {nextFree ? (
+            <Link href={href({ dato: nextFree })} scroll={false}>
+              Første ledige tid er {longDate(nextFree)}
+            </Link>
+          ) : (
+            <>Der er ingen ledige tider de næste {DAYS_AHEAD} dage.</>
+          )}
         </div>
       ) : (
         <div className="slots">

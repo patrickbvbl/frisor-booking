@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { BookingError, cancelBooking, defaultDeps, getBookingDetails, rescheduleBooking } from "@/lib/booking";
 import { setRebookOptIn } from "@/lib/rebooking";
 import { appDb, str } from "@/lib/server";
@@ -17,6 +18,7 @@ export async function cancelAction(formData: FormData) {
     if (!(e instanceof BookingError)) throw e;
     msg = e.message;
   }
+  revalidatePath(`/b/${token}`);
   redirect(`/b/${token}?besked=${encodeURIComponent(msg)}`);
 }
 
@@ -51,5 +53,7 @@ export async function rescheduleAction(formData: FormData) {
     url.searchParams.set("fejl", e.message);
     target = url.pathname + url.search;
   }
+  // Flytter kunden to gange, er adressen den samme, så siden skal hentes på ny.
+  revalidatePath(`/b/${token}`);
   redirect(target);
 }

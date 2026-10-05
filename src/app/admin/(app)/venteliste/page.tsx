@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { capitalize, clock, displayPhone, longDate } from "@/lib/format";
 import { toZoned } from "@/lib/time";
@@ -58,7 +59,7 @@ export default async function WaitlistAdminPage({ searchParams }: Props) {
                 {list.map((r, i) => (
                   <tr key={r.entry.id}>
                     <td>{i + 1}</td>
-                    <td>{r.customer.name}</td>
+                    <td><Link href={`/admin/kunder/${r.customer.id}`}>{r.customer.name}</Link></td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <a href={`tel:${r.customer.phone}`}>{displayPhone(r.customer.phone)}</a>
                     </td>

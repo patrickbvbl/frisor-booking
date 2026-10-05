@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Salon, Service, Staff } from "@/db/schema";
-import { kr } from "@/lib/format";
+import { displayPhone, kr } from "@/lib/format";
 import { minutesToHhmm } from "@/lib/time";
 import { imageUrl, type Block, type BlockProps, type CategoryGroup, type OpeningDay } from "@/lib/design";
 
@@ -213,7 +213,7 @@ function ContactBlock({ props, salon }: { props: BlockProps<"contact">; salon: S
         )}
         {salon.phone && (
           <span>
-            Telefon <a href={`tel:${salon.phone.replace(/\s/g, "")}`}>{salon.phone}</a>
+            Telefon <a href={`tel:${salon.phone.replace(/\s/g, "")}`}>{displayPhone(salon.phone)}</a>
           </span>
         )}
       </div>

@@ -44,6 +44,12 @@ function kroner(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : 0;
 }
 
+/** Viser siden igen med friske data og en "Gemt" besked ved det, der blev gemt. */
+function savedSettings(anchor: string): never {
+  revalidatePath("/admin/indstillinger");
+  redirect(`/admin/indstillinger?gemt=${anchor}#${anchor}`);
+}
+
 function minutes(v: FormDataEntryValue | null): number {
   const n = Math.round(Number(str(v)) / 5) * 5;
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -84,9 +90,10 @@ export async function saveServiceAction(formData: FormData) {
     await db.update(services).set({ ...values, position }).where(and(eq(services.id, id), eq(services.salonId, salon.id)));
   } else {
     const position = await nextServicePosition(db, salon.id, values.categoryId);
-    await db.insert(services).values({ ...values, position, active: true, salonId: salon.id });
+    const [created] = await db.insert(services).values({ ...values, position, active: true, salonId: salon.id }).returning();
+    savedSettings(`ydelse-${created.id}`);
   }
-  redirect("/admin/indstillinger");
+  savedSettings(`ydelse-${id}`);
 }
 
 /** Salonens regler for afbud og depositum. */
@@ -102,7 +109,7 @@ export async function savePolicyAction(formData: FormData) {
       depositAfterNoShows: Number.isFinite(noShows) && noShows >= 1 && noShows <= 10 ? noShows : salon.depositAfterNoShows,
     })
     .where(eq(salons.id, salon.id));
-  redirect("/admin/indstillinger?gemt=regler");
+  savedSettings("regler");
 }
 
 export async function saveStaffAction(formData: FormData) {
@@ -124,8 +131,8 @@ export async function saveStaffAction(formData: FormData) {
     hours.push({ weekday: d, startMin, endMin });
   }
 
+  let staffId = id;
   await db.transaction(async (tx) => {
-    let staffId = id;
     if (id) {
       const updated = await tx
         .update(staff)
@@ -140,7 +147,7 @@ export async function saveStaffAction(formData: FormData) {
     await tx.delete(workingHours).where(eq(workingHours.staffId, staffId));
     if (hours.length) await tx.insert(workingHours).values(hours.map((h) => ({ ...h, staffId })));
   });
-  redirect("/admin/indstillinger");
+  savedSettings(`medarbejder-${staffId}`);
 }
 
 export async function removeWaitlistAction(formData: FormData) {
@@ -156,5 +163,6 @@ export async function offerWaitlistAction(formData: FormData) {
   const date = str(formData.get("date"));
   if (!isIsoDate(date)) redirect("/admin/venteliste");
   const sent = await offerFreedTime(db, salon.id, date, defaultDeps());
+  revalidatePath("/admin/venteliste");
   redirect(`/admin/venteliste?sendt=${sent}`);
 }

@@ -115,9 +115,18 @@ export default async function BookingPage({ params, searchParams }: Props) {
         </p>
       )}
 
-      {canCancel && (
-        <form action={cancelAction} style={{ marginTop: canMove ? 8 : 24 }} className="stack">
+      {canCancel && str(q.aflys) !== "1" && (
+        <p style={{ marginTop: canMove ? 8 : 24 }}>
+          <Link className="button danger full" href={`/b/${booking.token}?aflys=1#aflys`} scroll={false}>
+            Aflys tiden
+          </Link>
+        </p>
+      )}
+
+      {canCancel && str(q.aflys) === "1" && (
+        <form action={cancelAction} id="aflys" style={{ marginTop: canMove ? 8 : 24 }} className="card stack">
           <input type="hidden" name="token" value={booking.token} />
+          <strong>Vil du aflyse tiden?</strong>
           {booking.depositOre > 0 && booking.status === "confirmed" && (
             <p className="small muted" style={{ margin: 0 }}>
               {freeCancel
@@ -125,8 +134,17 @@ export default async function BookingPage({ params, searchParams }: Props) {
                 : `Der er under ${salon.cancellationHours} timer til din tid. Aflyser du nu, beholder salonen depositummet på ${kr(booking.depositOre)}.`}
             </p>
           )}
-          <button className="danger full" type="submit">Aflys tiden</button>
+          <button className="danger full" type="submit">Ja, aflys tiden</button>
+          <Link className="button secondary full" href={`/b/${booking.token}`} scroll={false}>
+            Nej, behold tiden
+          </Link>
         </form>
+      )}
+
+      {booking.status === "cancelled" && (
+        <p style={{ marginTop: 24 }}>
+          <Link className="button full" href={`/book/${salon.slug}?ydelse=${service.id}`}>Book en ny tid</Link>
+        </p>
       )}
 
       {salon.phone && (

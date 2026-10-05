@@ -25,6 +25,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { db, salon } = await requireAdmin();
   const q = await searchParams;
   const error = str(q.fejl);
+  const saved = str(q.gemt);
+  const savedNote = (anchor: string) =>
+    saved === anchor && (
+      <span className="badge" role="status">
+        Gemt
+      </span>
+    );
   const [services, team, categories] = await Promise.all([
     listServices(db, salon.id, false),
     listStaff(db, salon.id, false),
@@ -38,10 +45,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   return (
     <main className="page">
       <h1>Ydelser og medarbejdere</h1>
+      <nav className="jump-links small" aria-label="Gå til">
+        <a href="#regler">Afbud og depositum</a>
+        <a href="#kategorier">Kategorier</a>
+        <a href="#ydelser">Ydelser</a>
+        <a href="#medarbejdere">Medarbejdere og arbejdstider</a>
+      </nav>
       {error && <div className="alert">{error}</div>}
 
-      <h2>Afbud og depositum</h2>
-      {str(q.gemt) === "regler" && <div className="alert ok">Reglerne er gemt.</div>}
+      <h2 id="regler">Afbud og depositum</h2>
+      {saved === "regler" && <div className="alert ok">Reglerne er gemt.</div>}
       <form action={savePolicyAction} className="card stack">
         <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Hvem skal betale depositum?</legend>
@@ -113,7 +126,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </form>
       </div>
 
-      <h2>Ydelser</h2>
+      <h2 id="ydelser">Ydelser</h2>
       <p className="muted small">
         Sæt et depositum på ydelser hvor en udeblivelse koster meget, fx farve. Kunden betaler det med MobilePay, når de booker. Virketid
         er tiden hvor fx farven sidder, og frisøren kan tage en anden kunde imens. Skriv hvor mange minutter der går, før den starter,
@@ -164,6 +177,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 </label>
                 <div className="row">
                   <button className="secondary small" type="submit">Gem</button>
+                  {savedNote(`ydelse-${s.id}`)}
                   <MoveButtons up={moveServiceUpAction} down={moveServiceDownAction} first={i === 0} last={i === g.services.length - 1} label={s.name} />
                 </div>
               </form>
@@ -192,11 +206,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </form>
       </div>
 
-      <h2>Medarbejdere og arbejdstider</h2>
+      <h2 id="medarbejdere">Medarbejdere og arbejdstider</h2>
       <p className="muted small">Lad felterne stå tomme på dage, hvor medarbejderen har fri.</p>
       <div className="stack" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
         {[...team, null].map((m) => (
-          <form key={m?.id ?? "new"} action={saveStaffAction} className="card stack">
+          <form
+            key={m ? JSON.stringify([m, hours.filter((h) => h.staffId === m.id)]) : "new"}
+            id={m ? `medarbejder-${m.id}` : undefined}
+            action={saveStaffAction}
+            className="card stack"
+          >
             <input type="hidden" name="id" value={m?.id ?? ""} />
             <label>
               {m ? "Navn" : "Ny medarbejder"}
@@ -219,7 +238,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 <input name="active" type="checkbox" defaultChecked={m.active} /> Kan bookes
               </label>
             )}
-            <button className={`small ${m ? "secondary" : ""}`} type="submit">{m ? "Gem" : "Tilføj"}</button>
+            <div className="row">
+              <button className={`small ${m ? "secondary" : ""}`} type="submit" style={{ flex: 1 }}>{m ? "Gem" : "Tilføj"}</button>
+              {m && savedNote(`medarbejder-${m.id}`)}
+            </div>
           </form>
         ))}
       </div>
