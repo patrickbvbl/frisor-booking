@@ -1,12 +1,13 @@
 :root {
-  --bg: #faf8f5;
-  --surface: #ffffff;
-  --text: #1d1b19;
-  --muted: #6b655e;
-  --line: #e7e2db;
-  --accent: #1f5f4a;
-  --accent-soft: #e4f0eb;
-  --accent-text: #ffffff;
+  /* Blæk på papir. Ingen accentfarve: handlinger og valgte ting står i blæk, så kun advarsler og fejl har farve. */
+  --bg: #f4efe6;
+  --surface: #fbf8f3;
+  --text: #1e1b18;
+  --muted: #6b645b;
+  --line: #e2dacd;
+  --accent: #1e1b18;
+  --accent-soft: #e9e1d3;
+  --accent-text: #fbf8f3;
   --warn: #9a5b00;
   --warn-soft: #fdf1dd;
   --danger: #a3312a;
@@ -24,9 +25,9 @@
     --text: #f1eee9;
     --muted: #a39d95;
     --line: #34312d;
-    --accent: #5fbf9b;
-    --accent-soft: #1f342c;
-    --accent-text: #0f1a16;
+    --accent: #f1eee9;
+    --accent-soft: #2e2b27;
+    --accent-text: #161514;
     --warn: #e3a64a;
     --warn-soft: #3a2c15;
     --danger: #ef8a82;

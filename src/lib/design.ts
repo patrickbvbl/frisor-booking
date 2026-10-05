@@ -80,7 +80,7 @@ export type Theme = {
 export type Design = { theme: Theme; blocks: Block[] };
 
 export const DEFAULT_THEME: Theme = {
-  accent: "#1f5f4a",
+  accent: "#1e1b18",
   background: "#f4efe6",
   headingFont: "youngserif",
   bodyFont: "atkinson",
@@ -89,7 +89,8 @@ export const DEFAULT_THEME: Theme = {
 
 /** Færdige farvesæt, så salonen ikke behøver at vælge farver selv. */
 export const PALETTES: { name: string; accent: string; background: string }[] = [
-  { name: "Grøn på papir", accent: "#1f5f4a", background: "#f4efe6" },
+  { name: "Blæk på papir", accent: "#1e1b18", background: "#f4efe6" },
+  { name: "Grøn", accent: "#1f5f4a", background: "#faf8f5" },
   { name: "Sort og hvid", accent: "#111111", background: "#ffffff" },
   { name: "Rosa", accent: "#b03a64", background: "#fdf4f6" },
   { name: "Blå", accent: "#1d4ed8", background: "#f5f8ff" },
