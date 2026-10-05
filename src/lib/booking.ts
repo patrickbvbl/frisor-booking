@@ -314,26 +314,15 @@ export async function handlePaymentEvent(db: Db, reference: string, event: Provi
 
   if (booking.status === "pending_payment" || booking.status === "expired") {
     // Kom betalingen efter holdetiden, er tiden måske givet til en anden imellemtiden.
-    const candidates = await db
-      .select({
-        start: bookings.startsAt,
-        end: bookings.endsAt,
-        processingStart: bookings.processingStartsAt,
-        processingEnd: bookings.processingEndsAt,
-      })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.staffId, booking.staffId),
-          sql`${bookings.id} <> ${booking.id}`,
-          lt(bookings.startsAt, booking.endsAt),
-          gt(bookings.endsAt, booking.startsAt),
-          blocksTime(deps.now),
-        ),
-      );
-    // Virketid tæller ikke som optaget, så en kunde kan sidde i hullet på en anden.
-    const mine = busyParts({ start: booking.startsAt, end: booking.endsAt, processingStart: booking.processingStartsAt, processingEnd: booking.processingEndsAt });
-    const clash = candidates.some((c) => busyParts(c).some((p) => mine.some((m) => overlaps(p, m))));
+    const clash = await clashes(db, {
+      staffId: booking.staffId,
+      start: booking.startsAt,
+      end: booking.endsAt,
+      processingStart: booking.processingStartsAt,
+      processingEnd: booking.processingEndsAt,
+      now: deps.now,
+      ignoreBookingId: booking.id,
+    });
     if (clash) {
       await deps.payments.cancel(reference);
       await db.update(payments).set({ status: "cancelled", updatedAt: deps.now }).where(eq(payments.reference, reference));
@@ -344,6 +333,125 @@ export async function handlePaymentEvent(db: Db, reference: string, event: Provi
     }
   }
   return db.query.bookings.findFirst({ where: eq(bookings.id, booking.id) });
+}
+
+/** Om en tid hos en frisør støder ind i en anden booking. Virketid tæller ikke som optaget, så en kunde kan sidde i hullet på en anden. */
+async function clashes(
+  db: Db,
+  args: { staffId: number; start: Date; end: Date; processingStart: Date | null; processingEnd: Date | null; now: Date; ignoreBookingId?: number },
+): Promise<boolean> {
+  const candidates = await db
+    .select({
+      start: bookings.startsAt,
+      end: bookings.endsAt,
+      processingStart: bookings.processingStartsAt,
+      processingEnd: bookings.processingEndsAt,
+    })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.staffId, args.staffId),
+        args.ignoreBookingId ? sql`${bookings.id} <> ${args.ignoreBookingId}` : undefined,
+        lt(bookings.startsAt, args.end),
+        gt(bookings.endsAt, args.start),
+        blocksTime(args.now),
+      ),
+    );
+  const mine = busyParts(args);
+  return candidates.some((c) => busyParts(c).some((p) => mine.some((m) => overlaps(p, m))));
+}
+
+export type StaffBookingInput = {
+  serviceId: number;
+  staffId: number;
+  start: Date;
+  /** En kunde der findes i forvejen. Ellers oprettes kunden ud fra navn og telefon. */
+  customerId?: number | null;
+  name?: string;
+  phone?: string;
+  email?: string;
+  note?: string;
+  /** Send en bekræftelse på SMS. Står kunden i salonen, er det ofte ikke nødvendigt. */
+  sendSms: boolean;
+};
+
+/**
+ * Salonen opretter selv en booking, fx når en kunde ringer eller kommer ind fra gaden.
+ * Der kræves aldrig depositum, og salonen må booke uden for arbejdstid og tilbage i tid (en walk-in der allerede sidder i stolen),
+ * men ikke oven i en anden kunde hos samme frisør.
+ */
+export async function createStaffBooking(db: Db, salon: Salon, input: StaffBookingInput, deps: Deps): Promise<Booking> {
+  const service = await db.query.services.findFirst({ where: and(eq(services.id, input.serviceId), eq(services.salonId, salon.id)) });
+  if (!service) throw new BookingError("Vælg en ydelse.");
+  const member = await db.query.staff.findFirst({
+    where: and(eq(staff.id, input.staffId), eq(staff.salonId, salon.id), eq(staff.active, true)),
+  });
+  if (!member) throw new BookingError("Vælg en frisør.");
+  if (Number.isNaN(input.start.getTime())) throw new BookingError("Vælg dato og tidspunkt.");
+
+  let customer: Customer | undefined;
+  if (input.customerId) {
+    customer = await db.query.customers.findFirst({ where: and(eq(customers.id, input.customerId), eq(customers.salonId, salon.id)) });
+    if (!customer) throw new BookingError("Kunden findes ikke.");
+  } else {
+    const name = (input.name ?? "").trim();
+    const phone = normalizePhone(input.phone ?? "");
+    if (name.length < 2) throw new BookingError("Skriv kundens navn.");
+    if (!phone) throw new BookingError("Telefonnummeret ser forkert ud. Skriv 8 cifre.");
+    // Findes nummeret i forvejen, bruges den kunde, så historikken samles ét sted.
+    customer =
+      (await db.query.customers.findFirst({ where: and(eq(customers.salonId, salon.id), eq(customers.phone, phone)) })) ??
+      (await db
+        .insert(customers)
+        .values({ salonId: salon.id, name, phone, email: input.email?.trim() || null })
+        .onConflictDoNothing()
+        .returning())[0] ??
+      (await db.query.customers.findFirst({ where: and(eq(customers.salonId, salon.id), eq(customers.phone, phone)) }));
+    if (!customer) throw new BookingError("Kunden kunne ikke gemmes. Prøv igen.");
+  }
+  const customerId = customer.id;
+
+  const end = new Date(input.start.getTime() + service.durationMin * 60000);
+  const parts = segmentIntervals(input.start, serviceSegments(service));
+  const processing = parts.length === 2 ? { start: parts[0].end, end: parts[1].start } : null;
+
+  const booking = await db.transaction(async (tx) => {
+    const t = tx as unknown as Db;
+    await tx.select({ id: staff.id }).from(staff).where(eq(staff.id, member.id)).for("update");
+    const clash = await clashes(t, {
+      staffId: member.id,
+      start: input.start,
+      end,
+      processingStart: processing?.start ?? null,
+      processingEnd: processing?.end ?? null,
+      now: deps.now,
+    });
+    if (clash) throw new BookingError(`${member.name} har allerede en kunde på det tidspunkt. Vælg en anden tid eller frisør.`);
+    const [created] = await tx
+      .insert(bookings)
+      .values({
+        salonId: salon.id,
+        staffId: member.id,
+        serviceId: service.id,
+        customerId,
+        startsAt: input.start,
+        endsAt: end,
+        processingStartsAt: processing?.start ?? null,
+        processingEndsAt: processing?.end ?? null,
+        createdAt: deps.now,
+        status: "confirmed",
+        priceOre: service.priceOre,
+        depositOre: 0,
+        token: randomBytes(18).toString("base64url"),
+        note: input.note?.trim() || null,
+      })
+      .returning();
+    return created;
+  });
+  const date = toZoned(input.start, salon.timezone).date;
+  await closeWaitlistForBooking(db, { customerId, serviceId: service.id, date, bookingId: booking.id });
+  if (input.sendSms && input.start > deps.now) await sendBookingSms(db, booking.id, "confirmation", deps);
+  return booking;
 }
 
 async function activePayment(db: Db, bookingId: number) {
@@ -547,13 +655,23 @@ export async function sendBookingSms(db: Db, bookingId: number, kind: "confirmat
 
 /** Alt til medarbejderkalenderen for én dag. */
 export async function getDayCalendar(db: Db, salon: Salon, date: string) {
-  const dayStart = fromZoned(date, 0, salon.timezone);
-  const dayEnd = fromZoned(addDays(date, 1), 0, salon.timezone);
+  return getCalendar(db, salon, date, 1);
+}
+
+/** Alt til ugevisningen: syv dage fra mandag. */
+export async function getWeekCalendar(db: Db, salon: Salon, monday: string) {
+  return getCalendar(db, salon, monday, 7);
+}
+
+async function getCalendar(db: Db, salon: Salon, first: string, days: number) {
+  const rangeStart = fromZoned(first, 0, salon.timezone);
+  const rangeEnd = fromZoned(addDays(first, days), 0, salon.timezone);
+  const weekdays = Array.from({ length: days }, (_, i) => weekdayOf(addDays(first, i)));
   const team = await listStaff(db, salon.id);
   const ids = team.map((s) => s.id);
   const [hours, rows] = await Promise.all([
     ids.length
-      ? db.select().from(workingHours).where(and(inArray(workingHours.staffId, ids), eq(workingHours.weekday, weekdayOf(date))))
+      ? db.select().from(workingHours).where(and(inArray(workingHours.staffId, ids), inArray(workingHours.weekday, weekdays)))
       : Promise.resolve([]),
     db
       .select({ booking: bookings, customer: customers, service: services })
@@ -563,8 +681,8 @@ export async function getDayCalendar(db: Db, salon: Salon, date: string) {
       .where(
         and(
           eq(bookings.salonId, salon.id),
-          gte(bookings.startsAt, dayStart),
-          lt(bookings.startsAt, dayEnd),
+          gte(bookings.startsAt, rangeStart),
+          lt(bookings.startsAt, rangeEnd),
           inArray(bookings.status, ["confirmed", "completed", "no_show", "pending_payment", "cancelled"]),
         ),
       )

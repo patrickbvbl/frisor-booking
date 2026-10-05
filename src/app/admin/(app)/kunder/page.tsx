@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
-import { listCustomers } from "@/lib/customers";
+import { countCustomers, listCustomers } from "@/lib/customers";
 import { rebookPlans } from "@/lib/rebooking";
 import { displayPhone } from "@/lib/format";
+import { str } from "@/lib/server";
 import { toZoned } from "@/lib/time";
 
-export default async function CustomersPage() {
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function CustomersPage({ searchParams }: Props) {
   const { db, salon } = await requireAdmin();
+  const search = str((await searchParams).q).trim();
   const now = new Date();
-  const [rows, plans] = await Promise.all([listCustomers(db, salon.id), rebookPlans(db, salon.id, now)]);
+  const [rows, total, plans] = await Promise.all([
+    listCustomers(db, salon.id, search),
+    countCustomers(db, salon.id),
+    rebookPlans(db, salon.id, now),
+  ]);
   const planOf = new Map(plans.map((p) => [p.customerId, p]));
   return (
     <main className="page">
@@ -16,7 +24,7 @@ export default async function CustomersPage() {
         <div>
           <h1>Kunder</h1>
           <p className="muted small" style={{ margin: 0 }}>
-            {rows.length} kunder. Dine kunder er dine: du kan altid hente hele listen.
+            {total} kunder. Dine kunder er dine: du kan altid hente hele listen.
           </p>
         </div>
         <div className="row">
@@ -24,7 +32,26 @@ export default async function CustomersPage() {
           <a className="button secondary small" href="/admin/kunder/eksport">Hent som CSV</a>
         </div>
       </div>
-      <div className="card table-scroll" style={{ marginTop: 16 }}>
+      <form action="/admin/kunder" className="row" role="search" style={{ marginTop: 16 }}>
+        <input
+          name="q"
+          type="search"
+          defaultValue={search}
+          placeholder="Søg på navn, telefon eller e-mail"
+          aria-label="Søg i kunder"
+          style={{ flex: 1, width: "auto", maxWidth: 420 }}
+        />
+        <button className="secondary" type="submit">Søg</button>
+        {search && (
+          <Link className="small" href="/admin/kunder">Ryd</Link>
+        )}
+      </form>
+      {search && (
+        <p className="muted small" style={{ margin: "8px 0 0" }}>
+          {rows.length} {rows.length === 1 ? "kunde matcher" : "kunder matcher"} &quot;{search}&quot;.
+        </p>
+      )}
+      <div className="card table-scroll" style={{ marginTop: 12 }}>
         <table>
           <thead>
             <tr>
@@ -57,7 +84,14 @@ export default async function CustomersPage() {
                 <td className="small">{c.note}</td>
               </tr>
             ))}
-            {rows.length === 0 && (
+            {rows.length === 0 && search && (
+              <tr>
+                <td colSpan={8} className="muted">
+                  Ingen kunder matcher søgningen. <Link href={`/admin/ny?q=${encodeURIComponent(search)}`}>Opret en booking til en ny kunde</Link>.
+                </td>
+              </tr>
+            )}
+            {rows.length === 0 && !search && (
               <tr>
                 <td colSpan={8} className="muted">Ingen kunder endnu. De kommer her, når de booker, eller du kan importere dem fra dit gamle system.</td>
               </tr>

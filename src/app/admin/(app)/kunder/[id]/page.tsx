@@ -53,6 +53,7 @@ export default async function CustomerCardPage({ params, searchParams }: Props) 
             {customer.email && <> · {customer.email}</>} · kunde siden {toZoned(customer.createdAt, tz).date}
           </p>
         </div>
+        <Link className="button small" href={`/admin/ny?kunde=${customer.id}`}>+ Book tid</Link>
       </div>
 
       {str(q.fejl) && <div className="alert">{str(q.fejl)}</div>}

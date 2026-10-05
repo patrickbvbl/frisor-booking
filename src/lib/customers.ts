@@ -1,9 +1,27 @@
-import { and, desc, eq, isNotNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull, lt, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { bookings, customers, services, staff, type DepositOverride } from "@/db/schema";
 
+/**
+ * Søgning på navn, e-mail eller telefon. Telefon matches på cifrene, så "22 33 44" finder +4522334455.
+ * Flere ord skal alle passe, så "anne jen" finder Anne Jensen.
+ */
+export function customerSearch(query: string): SQL | undefined {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
+  if (words.length === 0) return undefined;
+  const digits = query.replace(/\D/g, "");
+  const textMatch = and(
+    ...words.map((w) => {
+      const like = `%${w.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      return or(ilike(customers.name, like), ilike(customers.email, like));
+    }),
+  );
+  // Et nummer skrives tit med mellemrum, så cifrene samles og søges for sig.
+  return digits.length >= 3 ? or(textMatch, sql`${customers.phone} like ${`%${digits}%`}`) : textMatch;
+}
+
 /** Kundekartoteket med nøgletal. Salonen ejer sine kunder og kan altid eksportere dem. */
-export async function listCustomers(db: Db, salonId: number) {
+export async function listCustomers(db: Db, salonId: number, query = "") {
   return db
     .select({
       id: customers.id,
@@ -20,9 +38,29 @@ export async function listCustomers(db: Db, salonId: number) {
     })
     .from(customers)
     .leftJoin(bookings, eq(bookings.customerId, customers.id))
-    .where(eq(customers.salonId, salonId))
+    .where(and(eq(customers.salonId, salonId), customerSearch(query)))
     .groupBy(customers.id)
     .orderBy(desc(customers.createdAt));
+}
+
+export async function countCustomers(db: Db, salonId: number): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)`.mapWith(Number) })
+    .from(customers)
+    .where(eq(customers.salonId, salonId));
+  return row?.n ?? 0;
+}
+
+/** Hurtigsøgning til at vælge en kunde, fx når salonen opretter en booking. */
+export async function findCustomers(db: Db, salonId: number, query: string, limit = 8) {
+  const where = customerSearch(query);
+  if (!where) return [];
+  return db
+    .select({ id: customers.id, name: customers.name, phone: customers.phone, email: customers.email })
+    .from(customers)
+    .where(and(eq(customers.salonId, salonId), where))
+    .orderBy(asc(customers.name))
+    .limit(limit);
 }
 
 export function toCsv(rows: (string | number | null)[][]): string {
