@@ -1,7 +1,7 @@
 import type { Db } from "@/db/client";
 import { smsMessages } from "@/db/schema";
 
-export type SmsKind = "confirmation" | "reminder" | "cancellation" | "waitlist" | "waitlist_offer" | "rebook";
+export type SmsKind = "confirmation" | "reminder" | "cancellation" | "rescheduled" | "waitlist" | "waitlist_offer" | "rebook";
 
 export interface SmsProvider {
   name: string;

@@ -10,6 +10,7 @@ import {
   staff,
   workingHours,
   type Booking,
+  type Customer,
   type Salon,
   type Service,
   type Staff,
@@ -83,7 +84,15 @@ export type Slot = { start: Date; staffIds: number[] };
  */
 export async function getAvailability(
   db: Db,
-  args: { salon: Salon; service: Service; staffId: number | null; date: string; now: Date },
+  args: {
+    salon: Salon;
+    service: Service;
+    staffId: number | null;
+    date: string;
+    now: Date;
+    /** Bookingen der flyttes, så den ikke står i vejen for sig selv. */
+    ignoreBookingId?: number;
+  },
 ): Promise<Slot[]> {
   const { salon, service, date, now } = args;
   const team = (await listStaff(db, salon.id)).filter((s) => args.staffId === null || s.id === args.staffId);
@@ -104,7 +113,15 @@ export async function getAvailability(
         processingEnd: bookings.processingEndsAt,
       })
       .from(bookings)
-      .where(and(inArray(bookings.staffId, ids), lt(bookings.startsAt, dayEnd), gt(bookings.endsAt, dayStart), blocksTime(now))),
+      .where(
+        and(
+          inArray(bookings.staffId, ids),
+          lt(bookings.startsAt, dayEnd),
+          gt(bookings.endsAt, dayStart),
+          blocksTime(now),
+          args.ignoreBookingId ? sql`${bookings.id} <> ${args.ignoreBookingId}` : undefined,
+        ),
+      ),
   ]);
 
   const byTime = new Map<number, number[]>();
@@ -125,6 +142,31 @@ export async function getAvailability(
     }
   }
   return [...byTime.entries()].sort(([a], [b]) => a - b).map(([t, staffIds]) => ({ start: new Date(t), staffIds }));
+}
+
+/**
+ * Om kunden skal betale ydelsens depositum. Salonen kan kræve det af alle, eller kun af kunder der er udeblevet før,
+ * så trofaste kunder booker uden at betale noget på forhånd. Salonens valg for den enkelte kunde vinder over reglen.
+ */
+export function depositRequired(args: {
+  service: Pick<Service, "depositOre">;
+  salon: Pick<Salon, "depositMode" | "depositAfterNoShows">;
+  customer: Pick<Customer, "depositOverride"> | null;
+  noShows: number;
+}): boolean {
+  if (args.service.depositOre <= 0) return false;
+  if (args.customer?.depositOverride === "never") return false;
+  if (args.customer?.depositOverride === "always") return true;
+  if (args.salon.depositMode === "no_show") return args.noShows >= Math.max(1, args.salon.depositAfterNoShows);
+  return true;
+}
+
+export async function countNoShows(db: Db, customerId: number): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)`.mapWith(Number) })
+    .from(bookings)
+    .where(and(eq(bookings.customerId, customerId), eq(bookings.status, "no_show")));
+  return row?.n ?? 0;
 }
 
 export type CreateBookingInput = {
@@ -189,7 +231,7 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
       })
       .returning();
 
-    const needsDeposit = service.depositOre > 0;
+    const needsDeposit = depositRequired({ service, salon, customer, noShows: await countNoShows(t, customer.id) });
     const [created] = await tx
       .insert(bookings)
       .values({
@@ -204,7 +246,7 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
         createdAt: deps.now,
         status: needsDeposit ? "pending_payment" : "confirmed",
         priceOre: service.priceOre,
-        depositOre: service.depositOre,
+        depositOre: needsDeposit ? service.depositOre : 0,
         token: randomBytes(18).toString("base64url"),
         note: input.note?.trim() || null,
         holdExpiresAt: needsDeposit ? new Date(deps.now.getTime() + PAYMENT_HOLD_MIN * 60000) : null,
@@ -359,6 +401,75 @@ export async function cancelBooking(
   return { depositReturned: free };
 }
 
+/**
+ * Om kunden selv kan flytte tiden nu. Samme frist som gratis aflysning, så flytning ikke bliver en vej uden om reglen.
+ * En tid der venter på depositum, kan ikke flyttes, før den er betalt.
+ */
+export function customerCanReschedule(booking: Booking, salon: Salon, now: Date): boolean {
+  return booking.status === "confirmed" && customerCanCancelFree(booking, salon, now);
+}
+
+/**
+ * Kunden flytter sin tid til en ny ledig tid. Bookingen beholder sit link og sit depositum.
+ * Med staffId = null må tiden ligge hos alle frisører, ellers kun hos den valgte.
+ * Den gamle tid tilbydes bagefter til ventelisten.
+ */
+export async function rescheduleBooking(
+  db: Db,
+  bookingId: number,
+  input: { start: Date; staffId: number | null },
+  deps: Deps,
+): Promise<Booking> {
+  const booking = await db.query.bookings.findFirst({ where: eq(bookings.id, bookingId) });
+  if (!booking) throw new BookingError("Bookingen findes ikke.");
+  const salon = (await db.query.salons.findFirst({ where: eq(salons.id, booking.salonId) }))!;
+  if (booking.status !== "confirmed" || booking.startsAt <= deps.now) throw new BookingError("Tiden kan ikke flyttes.");
+  if (!customerCanCancelFree(booking, salon, deps.now)) {
+    throw new BookingError(`Der er under ${salon.cancellationHours} timer til din tid. Ring til salonen, hvis du vil flytte den.`);
+  }
+  const service = (await db.query.services.findFirst({ where: eq(services.id, booking.serviceId) }))!;
+  const date = toZoned(input.start, salon.timezone).date;
+  const end = new Date(input.start.getTime() + service.durationMin * 60000);
+  const parts = segmentIntervals(input.start, serviceSegments(service));
+  const processing = parts.length === 2 ? { start: parts[0].end, end: parts[1].start } : null;
+
+  const moved = await db.transaction(async (tx) => {
+    const t = tx as unknown as Db;
+    const team = (await listStaff(t, salon.id)).filter((s) => input.staffId === null || s.id === input.staffId);
+    if (team.length === 0) throw new BookingError("Medarbejderen findes ikke.");
+    await tx
+      .select({ id: staff.id })
+      .from(staff)
+      .where(inArray(staff.id, team.map((s) => s.id)))
+      .for("update");
+    const slots = await getAvailability(t, { salon, service, staffId: input.staffId, date, now: deps.now, ignoreBookingId: booking.id });
+    const slot = slots.find((s) => s.start.getTime() === input.start.getTime());
+    if (!slot) throw new BookingError("Tiden er desværre lige blevet taget. Vælg en anden tid.");
+    // Bliv hos samme frisør, hvis hun kan.
+    const staffId = slot.staffIds.includes(booking.staffId) ? booking.staffId : slot.staffIds[0];
+    const [updated] = await tx
+      .update(bookings)
+      .set({
+        staffId,
+        startsAt: input.start,
+        endsAt: end,
+        processingStartsAt: processing?.start ?? null,
+        processingEndsAt: processing?.end ?? null,
+        reminderSentAt: null,
+        rescheduledAt: deps.now,
+      })
+      .where(and(eq(bookings.id, booking.id), eq(bookings.status, "confirmed")))
+      .returning();
+    if (!updated) throw new BookingError("Tiden kan ikke flyttes.");
+    return updated;
+  });
+
+  await closeWaitlistForBooking(db, { customerId: moved.customerId, serviceId: moved.serviceId, date, bookingId: moved.id });
+  await sendBookingSms(db, moved.id, "rescheduled", deps);
+  await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps, booking);
+  return moved;
+}
+
 /** Markér en tid som gennemført eller udeblevet. I begge tilfælde trækkes et reserveret depositum. */
 export async function setOutcome(db: Db, bookingId: number, outcome: "completed" | "no_show", deps: Deps) {
   const booking = await db.query.bookings.findFirst({ where: eq(bookings.id, bookingId) });
@@ -417,7 +528,7 @@ export async function getBookingDetails(db: Db, where: { id: number } | { token:
   return { booking, salon: salon!, service: service!, staff: member!, customer: customer!, payment };
 }
 
-export async function sendBookingSms(db: Db, bookingId: number, kind: "confirmation" | "reminder" | "cancellation", deps: Deps) {
+export async function sendBookingSms(db: Db, bookingId: number, kind: "confirmation" | "reminder" | "cancellation" | "rescheduled", deps: Deps) {
   const d = await getBookingDetails(db, { id: bookingId });
   if (!d) return false;
   const tz = d.salon.timezone;
@@ -426,8 +537,9 @@ export async function sendBookingSms(db: Db, bookingId: number, kind: "confirmat
   const first = d.customer.name.split(" ")[0];
   const deposit = d.booking.depositOre > 0 ? ` Depositum på ${kr(d.booking.depositOre)} er reserveret.` : "";
   const body = {
-    confirmation: `Hej ${first}. Din tid hos ${d.salon.name} er bekræftet: ${d.service.name} ${when} hos ${d.staff.name}.${deposit} Se eller aflys: ${link}`,
-    reminder: `Hej ${first}. Husk din tid hos ${d.salon.name} ${when} (${d.service.name}). Kan du ikke komme, så aflys her: ${link}`,
+    confirmation: `Hej ${first}. Din tid hos ${d.salon.name} er bekræftet: ${d.service.name} ${when} hos ${d.staff.name}.${deposit} Se, flyt eller aflys: ${link}`,
+    reminder: `Hej ${first}. Husk din tid hos ${d.salon.name} ${when} (${d.service.name}). Kan du ikke komme, så flyt eller aflys her: ${link}`,
+    rescheduled: `Hej ${first}. Din tid hos ${d.salon.name} er flyttet til ${when} hos ${d.staff.name} (${d.service.name}). Se, flyt eller aflys: ${link}`,
     cancellation: `Hej ${first}. Din tid hos ${d.salon.name} ${when} er aflyst. Book en ny tid: ${deps.appUrl}/book/${d.salon.slug}`,
   }[kind];
   return sendSms(db, { salonId: d.salon.id, bookingId, to: d.customer.phone, body, kind }, deps.sms);

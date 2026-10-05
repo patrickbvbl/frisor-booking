@@ -45,6 +45,8 @@ export default async function BookPage({ params, searchParams }: Props) {
     return `/book/${salon.slug}?${sp}`;
   };
 
+  // Med "kun for dem der udebliver" ved vi først, om kunden skal betale, når vi kender telefonnummeret.
+  const depositForAll = salon.depositMode === "always";
   const step = !service ? 1 : !staffChosen ? 2 : !start ? 3 : 4;
 
   return (
@@ -73,7 +75,7 @@ export default async function BookPage({ params, searchParams }: Props) {
               </span>
               <span style={{ textAlign: "right" }}>
                 {kr(s.priceOre)}
-                {s.depositOre > 0 && (
+                {s.depositOre > 0 && depositForAll && (
                   <>
                     <br />
                     <span className="badge">Depositum {kr(s.depositOre)}</span>
@@ -141,12 +143,20 @@ export default async function BookPage({ params, searchParams }: Props) {
                   </dd>
                   <dt>Pris</dt>
                   <dd>{kr(service.priceOre)}, betales i salonen</dd>
-                  {service.depositOre > 0 && (
+                  {service.depositOre > 0 && depositForAll && (
                     <>
                       <dt>Depositum</dt>
                       <dd>
                         {kr(service.depositOre)} reserveres med MobilePay og trækkes fra prisen. Du får det tilbage, hvis du aflyser
                         senest {salon.cancellationHours} timer før.
+                      </dd>
+                    </>
+                  )}
+                  {service.depositOre > 0 && !depositForAll && (
+                    <>
+                      <dt>Depositum</dt>
+                      <dd>
+                        Intet depositum. Er du udeblevet fra en tid før, reserveres {kr(service.depositOre)} med MobilePay, når du booker.
                       </dd>
                     </>
                   )}
@@ -177,13 +187,13 @@ export default async function BookPage({ params, searchParams }: Props) {
                 <label className="row small" style={{ fontWeight: "normal" }}>
                   <input name="rebookOptIn" type="checkbox" /> Send mig en SMS, når det er tid til næste besøg
                 </label>
-                {service.depositOre > 0 ? (
+                {service.depositOre > 0 && depositForAll ? (
                   <button className="mp full" type="submit">Book og betal depositum med MobilePay</button>
                 ) : (
                   <button className="full" type="submit">Book tiden</button>
                 )}
                 <p className="muted small" style={{ margin: 0 }}>
-                  Du får en SMS med bekræftelse og et link, hvor du kan aflyse. Ingen app eller login.
+                  Du får en SMS med bekræftelse og et link, hvor du kan flytte eller aflyse. Ingen app eller login.
                 </p>
               </form>
             </section>
