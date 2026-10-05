@@ -30,6 +30,13 @@ Tredje runde, hvor vi mangler noget de andre har, eller kan skille os ud:
 | Kunden flytter selv sin tid | Linket i SMS'en (`/b/<token>/flyt`) | Virker. Samme frist som gratis afbud. Depositum følger med, og den gamle tid tilbydes ventelisten |
 | Depositum kun for dem der udebliver | `/admin/indstillinger` og kundekortet | Virker. Salonen vælger om alle eller kun kunder med udeblivelser skal betale depositum, og kan tilgive eller kræve det af den enkelte kunde |
 
+Salonens eget design:
+
+| Funktion | Hvor | Status |
+|---|---|---|
+| Kategorier for ydelser | `/admin/indstillinger` | Virker. Fx Herre, Dame og Børn med egen rækkefølge. Ydelserne kan også sorteres og få en beskrivelse |
+| Blokeditor til bookingsiden | `/admin/design` | Virker. Salonen vælger, sorterer og skjuler blokke (forside med logo og billede, tekst, besked, ydelser, medarbejdere, åbningstider, kontakt) og vælger farver, skrift og hjørner. Forhåndsvisning på en mobil ved siden af |
+
 Derudover: ydelser og arbejdstider kan redigeres under `/admin/indstillinger`, og kundelisten kan hentes som CSV under `/admin/kunder` ("dine kunder er dine").
 
 ## Kom i gang

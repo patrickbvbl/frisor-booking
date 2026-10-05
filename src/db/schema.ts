@@ -1,7 +1,9 @@
 import {
   boolean,
+  customType,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -24,6 +26,8 @@ export const salons = pgTable("salons", {
   // "always": ydelsens depositum kræves af alle. "no_show": kun af kunder der er udeblevet mindst depositAfterNoShows gange.
   depositMode: text("deposit_mode").$type<DepositMode>().notNull().default("always"),
   depositAfterNoShows: integer("deposit_after_no_shows").notNull().default(1),
+  // Salonens eget design af bookingsiden: blokke, farver og skrift. null = standarddesign. Se src/lib/design.ts.
+  design: jsonb("design"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -47,6 +51,15 @@ export const workingHours = pgTable(
   (t) => [index("working_hours_staff_idx").on(t.staffId, t.weekday)],
 );
 
+/** Grupper af ydelser på bookingsiden, fx Herreklip, Dameklip og Børneklip. position bestemmer rækkefølgen. */
+export const serviceCategories = pgTable("service_categories", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull().references(() => salons.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  position: integer("position").notNull().default(0),
+});
+
 export const services = pgTable("services", {
   id: serial("id").primaryKey(),
   salonId: integer("salon_id").notNull().references(() => salons.id),
@@ -60,6 +73,10 @@ export const services = pgTable("services", {
   processingMin: integer("processing_min").notNull().default(0),
   // Hvor mange uger der typisk går til næste besøg. Bruges til genbooking, når kunden ikke har en fast rytme endnu.
   rebookWeeks: integer("rebook_weeks"),
+  // Kategori og rækkefølge på bookingsiden. Uden kategori vises ydelsen under "Andet".
+  categoryId: integer("category_id").references(() => serviceCategories.id, { onDelete: "set null" }),
+  position: integer("position").notNull().default(0),
+  description: text("description"),
   active: boolean("active").notNull().default(true),
 });
 
@@ -200,9 +217,24 @@ export const waitlistEntries = pgTable(
   (t) => [index("waitlist_salon_date_idx").on(t.salonId, t.date, t.status)],
 );
 
+const bytea = customType<{ data: Buffer; driverData: Buffer | Uint8Array }>({
+  dataType: () => "bytea",
+  fromDriver: (v) => Buffer.from(v),
+});
+
+/** Billeder salonen har lagt op til bookingsiden, fx logo og forsidebillede. Vises via /billeder/[id]. */
+export const salonImages = pgTable("salon_images", {
+  id: serial("id").primaryKey(),
+  salonId: integer("salon_id").notNull().references(() => salons.id),
+  mime: text("mime").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Salon = typeof salons.$inferSelect;
 export type Staff = typeof staff.$inferSelect;
 export type Service = typeof services.$inferSelect;
+export type ServiceCategory = typeof serviceCategories.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type Payment = typeof payments.$inferSelect;

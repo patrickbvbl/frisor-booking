@@ -1,10 +1,14 @@
 import type { Db } from "./client";
-import { salons, services, staff, workingHours } from "./schema";
+import { and, eq } from "drizzle-orm";
+import { salons, serviceCategories, services, staff, workingHours, type Salon } from "./schema";
 
 /** Opretter en demosalon med tre frisører og et udvalg af ydelser. Gør ingenting hvis den findes. */
 export async function seedDemo(db: Db, slug = "demo") {
   const existing = await db.query.salons.findFirst({ where: (s, { eq }) => eq(s.slug, slug) });
-  if (existing) return existing;
+  if (existing) {
+    if (slug === "demo") await seedDemoCategories(db, existing);
+    return existing;
+  }
 
   const [salon] = await db
     .insert(salons)
@@ -48,5 +52,30 @@ export async function seedDemo(db: Db, slug = "demo") {
   await db.insert(workingHours).values(
     team.flatMap((m) => schedule[m.name].map(([weekday, startMin, endMin]) => ({ staffId: m.id, weekday, startMin, endMin }))),
   );
+  await seedDemoCategories(db, salon);
   return salon;
+}
+
+const DEMO_CATEGORIES: { name: string; description: string; services: string[] }[] = [
+  { name: "Herre", description: "Klip og skæg", services: ["Herreklip", "Skægtrim"] },
+  { name: "Dame", description: "Klip, farve og styling", services: ["Dameklip", "Farve og klip"] },
+  { name: "Børn", description: "For børn under 12 år", services: ["Børneklip (under 12 år)"] },
+];
+
+/** Giver demosalonen kategorier. Gør ingenting, hvis salonen allerede har kategorier, så salonens egne ændringer bevares. */
+async function seedDemoCategories(db: Db, salon: Salon) {
+  const has = await db.query.serviceCategories.findFirst({ where: eq(serviceCategories.salonId, salon.id) });
+  if (has) return;
+  for (const [position, c] of DEMO_CATEGORIES.entries()) {
+    const [cat] = await db
+      .insert(serviceCategories)
+      .values({ salonId: salon.id, name: c.name, description: c.description, position })
+      .returning();
+    for (const [i, name] of c.services.entries()) {
+      await db
+        .update(services)
+        .set({ categoryId: cat.id, position: i })
+        .where(and(eq(services.salonId, salon.id), eq(services.name, name)));
+    }
+  }
 }

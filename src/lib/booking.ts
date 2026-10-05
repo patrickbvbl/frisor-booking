@@ -65,7 +65,7 @@ export async function getSalonBySlug(db: Db, slug: string): Promise<Salon | unde
 export async function listServices(db: Db, salonId: number, onlyActive = true): Promise<Service[]> {
   return db.query.services.findMany({
     where: onlyActive ? and(eq(services.salonId, salonId), eq(services.active, true)) : eq(services.salonId, salonId),
-    orderBy: asc(services.id),
+    orderBy: [asc(services.position), asc(services.id)],
   });
 }
 

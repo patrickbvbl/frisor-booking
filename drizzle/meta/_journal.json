@@ -29,6 +29,13 @@
       "when": 1791196995083,
       "tag": "0003_customer_card_reschedule_deposit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791198703302,
+      "tag": "0004_page_design",
+      "breakpoints": true
     }
   ]
 }
