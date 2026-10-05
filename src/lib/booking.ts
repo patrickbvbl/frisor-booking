@@ -244,7 +244,7 @@ export async function handlePaymentEvent(db: Db, reference: string, event: Provi
     if (booking.status === "pending_payment") {
       await db.update(bookings).set({ status: "expired" }).where(eq(bookings.id, booking.id));
       const salon = (await db.query.salons.findFirst({ where: eq(salons.id, booking.salonId) }))!;
-      await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps);
+      await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps, booking);
     }
     return db.query.bookings.findFirst({ where: eq(bookings.id, booking.id) });
   }
@@ -330,7 +330,7 @@ export async function cancelBooking(
 
   await db.update(bookings).set({ status: "cancelled", cancelledAt: deps.now }).where(eq(bookings.id, booking.id));
   if (booking.status === "confirmed") await sendBookingSms(db, booking.id, "cancellation", deps);
-  await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps);
+  await offerFreedTime(db, salon.id, toZoned(booking.startsAt, salon.timezone).date, deps, booking);
   return { depositReturned: free };
 }
 

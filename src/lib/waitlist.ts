@@ -124,8 +124,15 @@ export async function matchingSlots(db: Db, entry: WaitlistEntry, salon: Salon, 
 /**
  * Kaldes når en tid bliver ledig. De første i køen for dagen, som tiden passer til, får en SMS med et link.
  * Tiden holdes ikke, så den der først trykker book, får den. De andre bliver stående på ventelisten.
+ * Med freed får kun dem en SMS, som den frigivne tid faktisk hjælper. Uden (salonen trykker selv) tilbydes alle ledige tider.
  */
-export async function offerFreedTime(db: Db, salonId: number, date: string, deps: Deps): Promise<number> {
+export async function offerFreedTime(
+  db: Db,
+  salonId: number,
+  date: string,
+  deps: Deps,
+  freed?: { staffId: number; startsAt: Date; endsAt: Date },
+): Promise<number> {
   const salon = await db.query.salons.findFirst({ where: eq(salons.id, salonId) });
   if (!salon) return 0;
   const entries = await db
@@ -139,7 +146,13 @@ export async function offerFreedTime(db: Db, salonId: number, date: string, deps
   let offered = 0;
   for (const { entry, customer, service } of entries) {
     if (offered >= OFFER_BATCH) break;
-    const slots = await matchingSlots(db, entry, salon, service, deps.now);
+    const slots = (await matchingSlots(db, entry, salon, service, deps.now)).filter(
+      (sl) =>
+        !freed ||
+        (sl.staffIds.includes(freed.staffId) &&
+          sl.start < freed.endsAt &&
+          sl.start.getTime() + service.durationMin * 60000 > freed.startsAt.getTime()),
+    );
     if (slots.length === 0) continue;
     const times = slots.slice(0, 3).map((s) => clock(s.start, salon.timezone));
     const more = slots.length > 3 ? " m.fl." : "";

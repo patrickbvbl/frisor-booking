@@ -139,6 +139,25 @@ describe("venteliste", () => {
     expect(await smsOf("waitlist_offer")).toHaveLength(0);
   });
 
+  it("sender ikke tilbud om tider, der allerede var ledige, når en anden frisør får et afbud", async () => {
+    // Kunden vil have Mette hele dagen, og hun har ledige tider om eftermiddagen i forvejen.
+    await joinWaitlist(
+      db,
+      { salonSlug: "demo", serviceId: herreklipId, staffId: mette.id, date: DAY, period: "all", name: "Lone", phone: "20304050" },
+      deps,
+    );
+    const ali = (await db.query.staff.findFirst({ where: (s, { eq }) => eq(s.name, "Ali") }))!;
+    const { booking } = await createBooking(
+      db,
+      { salonSlug: "demo", serviceId: herreklipId, staffId: ali.id, start: fromZoned(DAY, 11 * 60, TZ), name: "X Y", phone: "40506070" },
+      deps,
+    );
+    await cancelBooking(db, booking.id, "customer", deps);
+    expect(await smsOf("waitlist_offer")).toHaveLength(0);
+    // Salonen kan selv sende de ledige tider ud.
+    expect(await offerFreedTime(db, salonId, DAY, deps)).toBe(1);
+  });
+
   it("sender højst til de tre første i køen", async () => {
     const ids = await fillMorning();
     for (let i = 0; i < 5; i++) await join(`Kunde K${i}`, `5000000${i}`);
