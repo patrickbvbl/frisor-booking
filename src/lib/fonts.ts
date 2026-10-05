@@ -1,4 +1,4 @@
-import { Atkinson_Hyperlegible_Next, Cormorant_Garamond, Inter, Nunito, Oswald, Playfair_Display, Young_Serif } from "next/font/google";
+import { Atkinson_Hyperlegible_Next, Manrope, Cormorant_Garamond, Inter, Nunito, Oswald, Playfair_Display, Young_Serif } from "next/font/google";
 import type { FontKey } from "./design";
 
 // Skrifterne hentes ved build og ligger på vores eget domæne, så kundens IP ikke sendes til Google.
@@ -8,6 +8,8 @@ const nunito = Nunito({ subsets: ["latin"], display: "swap", preload: false });
 const playfair = Playfair_Display({ subsets: ["latin"], display: "swap", preload: false });
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "700"], display: "swap", preload: false });
 const oswald = Oswald({ subsets: ["latin"], display: "swap", preload: false });
+// Manrope er standardskriften i både admin og på bookingsiden, så den hentes med det samme.
+export const manrope = Manrope({ subsets: ["latin", "latin-ext"], display: "swap", variable: "--font-manrope" });
 const youngSerif = Young_Serif({ subsets: ["latin"], weight: "400", display: "swap", preload: false });
 const atkinson = Atkinson_Hyperlegible_Next({ subsets: ["latin"], display: "swap", preload: false });
 
@@ -20,6 +22,7 @@ const FAMILIES: Record<FontKey, string> = {
   playfair: `${playfair.style.fontFamily}, Georgia, serif`,
   cormorant: `${cormorant.style.fontFamily}, Georgia, serif`,
   oswald: `${oswald.style.fontFamily}, "Arial Narrow", ${SYSTEM}`,
+  manrope: `${manrope.style.fontFamily}, ${SYSTEM}`,
   youngserif: `${youngSerif.style.fontFamily}, Georgia, serif`,
   atkinson: `${atkinson.style.fontFamily}, ${SYSTEM}`,
 };
@@ -32,5 +35,7 @@ export function fontFamily(key: FontKey): string {
 }
 
 export function headingWeight(key: FontKey): number {
-  return SINGLE_WEIGHT.includes(key) ? 400 : 700;
+  if (SINGLE_WEIGHT.includes(key)) return 400;
+  // Manrope bliver tung i fed. 600 giver et roligere og mere eksklusivt udtryk.
+  return key === "manrope" ? 600 : 700;
 }

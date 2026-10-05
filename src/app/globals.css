@@ -45,7 +45,14 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.55 var(--font-manrope), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+strong,
+b {
+  font-weight: 650;
 }
 
 a {
@@ -54,12 +61,16 @@ a {
 
 h1 {
   font-size: 1.6rem;
-  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
   margin: 0 0 0.25rem;
 }
 
 h2 {
   font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   margin: 1.75rem 0 0.75rem;
 }
 
@@ -859,7 +870,7 @@ th {
 .salon-page h3 {
   font-family: var(--font-heading);
   font-weight: var(--heading-weight, 700);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 /* Tider og priser står lige under hinanden som i en tidtabel. */
@@ -871,9 +882,9 @@ th {
 .label,
 .salon-page .label {
   font-family: var(--font-body);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
   margin: 0;
@@ -1134,7 +1145,7 @@ td a[href^="tel:"] {
 }
 
 .price-name {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .price-leader {
