@@ -5,7 +5,13 @@ import { clock, kr, longDate, shortDate } from "@/lib/format";
 import { appDb, str } from "@/lib/server";
 import { addDays, isIsoDate, toZoned } from "@/lib/time";
 import { PERIODS } from "@/lib/waitlist";
+import { inArray } from "drizzle-orm";
+import { workingHours } from "@/db/schema";
+import { listCategories } from "@/lib/categories";
+import { groupServices, openingHours, parseDesign, themeVars, type Theme } from "@/lib/design";
+import { fontFamily } from "@/lib/fonts";
 import { bookAction, joinWaitlistAction } from "./actions";
+import { CompactHeader, SalonBlocks } from "./blocks";
 
 type Props = {
   params: Promise<{ salon: string }>;
@@ -27,7 +33,12 @@ export default async function BookPage({ params, searchParams }: Props) {
   const salon = await getSalonBySlug(db, slug);
   if (!salon) notFound();
 
-  const [services, team] = await Promise.all([listServices(db, salon.id), listStaff(db, salon.id)]);
+  const [services, team, categories] = await Promise.all([
+    listServices(db, salon.id),
+    listStaff(db, salon.id),
+    listCategories(db, salon.id),
+  ]);
+  const design = parseDesign(salon.design);
   const service = services.find((s) => String(s.id) === str(q.ydelse));
   const staffParam = str(q.frisor);
   const member = team.find((m) => String(m.id) === staffParam);
@@ -46,43 +57,36 @@ export default async function BookPage({ params, searchParams }: Props) {
   };
 
   const step = !service ? 1 : !staffChosen ? 2 : !start ? 3 : 4;
+  const steps = (
+    <div className="steps" aria-hidden>
+      {["Ydelse", "Frisør", "Tid", "Dine oplysninger"].map((label, i) => (
+        <span key={label} className={i < step ? "done" : ""}>{label}</span>
+      ))}
+    </div>
+  );
+  const needsHours = step === 1 && design.blocks.some((b) => b.type === "hours" && !b.hidden);
+  const hours =
+    needsHours && team.length ? await db.select().from(workingHours).where(inArray(workingHours.staffId, team.map((m) => m.id))) : [];
 
   return (
+    <SalonTheme theme={design.theme}>
     <main className="page narrow">
-      <p className="muted small" style={{ margin: 0 }}>Book tid hos</p>
-      <h1>{salon.name}</h1>
-      {salon.address && <p className="muted small" style={{ margin: 0 }}>{salon.address}</p>}
-
-      <div className="steps" aria-hidden>
-        {["Ydelse", "Frisør", "Tid", "Dine oplysninger"].map((label, i) => (
-          <span key={label} className={i < step ? "done" : ""}>{label}</span>
-        ))}
-      </div>
-
-      {error && <div className="alert" role="alert">{error}</div>}
-
-      {step === 1 && (
-        <section className="stack">
-          <h2 style={{ marginTop: 0 }}>Hvad skal du have lavet?</h2>
-          {services.map((s) => (
-            <Link key={s.id} className="card link-card" href={href({ ydelse: String(s.id) })}>
-              <span>
-                <strong>{s.name}</strong>
-                <br />
-                <span className="muted small">{s.durationMin} min</span>
-              </span>
-              <span style={{ textAlign: "right" }}>
-                {kr(s.priceOre)}
-                {s.depositOre > 0 && (
-                  <>
-                    <br />
-                    <span className="badge">Depositum {kr(s.depositOre)}</span>
-                  </>
-                )}
-              </span>
-            </Link>
-          ))}
-        </section>
+      {step === 1 ? (
+        <>
+          {error && <div className="alert" role="alert">{error}</div>}
+          <SalonBlocks
+            blocks={design.blocks}
+            data={{ salon, groups: groupServices(services, categories), team, opening: openingHours(hours), memberId: member?.id ?? null, href }}
+          >
+            {steps}
+          </SalonBlocks>
+        </>
+      ) : (
+        <>
+          <CompactHeader salon={salon} blocks={design.blocks} />
+          {steps}
+          {error && <div className="alert" role="alert">{error}</div>}
+        </>
       )}
 
       {service && (
@@ -191,6 +195,21 @@ export default async function BookPage({ params, searchParams }: Props) {
         </>
       )}
     </main>
+    </SalonTheme>
+  );
+}
+
+/** Salonens farver og skrift. Gælder kun bookingsiden, ikke admin. */
+function SalonTheme({ theme, children }: { theme: Theme; children: React.ReactNode }) {
+  const style = {
+    ...themeVars(theme),
+    "--font-heading": fontFamily(theme.headingFont),
+    "--font-body": fontFamily(theme.bodyFont),
+  } as React.CSSProperties;
+  return (
+    <div className="salon-page" style={style}>
+      {children}
+    </div>
   );
 }
 

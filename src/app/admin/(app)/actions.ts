@@ -3,9 +3,10 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { bookings, services, staff, workingHours } from "@/db/schema";
+import { bookings, serviceCategories, services, staff, workingHours } from "@/db/schema";
 import { endSession, requireAdmin } from "@/lib/auth";
 import { BookingError, cancelBooking, defaultDeps, setOutcome } from "@/lib/booking";
+import { nextServicePosition } from "@/lib/categories";
 import { str } from "@/lib/server";
 import { hhmmToMinutes, isIsoDate } from "@/lib/time";
 import { leaveWaitlist, offerFreedTime } from "@/lib/waitlist";
@@ -59,8 +60,16 @@ export async function saveServiceAction(formData: FormData) {
     processingAfterMin: minutes(formData.get("processingAfterMin")),
     processingMin: minutes(formData.get("processingMin")),
     rebookWeeks: Math.round(Number(str(formData.get("rebookWeeks")))) || null,
+    description: str(formData.get("description")).trim().slice(0, 300) || null,
+    categoryId: Number(str(formData.get("categoryId"))) || null,
     active: formData.get("active") === "on",
   };
+  if (values.categoryId) {
+    const category = await db.query.serviceCategories.findFirst({
+      where: and(eq(serviceCategories.id, values.categoryId), eq(serviceCategories.salonId, salon.id)),
+    });
+    if (!category) values.categoryId = null;
+  }
   if (!values.name) redirect("/admin/indstillinger?fejl=Ydelsen skal have et navn.");
   if (values.processingMin > 0 && (values.processingAfterMin <= 0 || values.processingAfterMin + values.processingMin >= values.durationMin)) {
     redirect(
@@ -68,8 +77,15 @@ export async function saveServiceAction(formData: FormData) {
     );
   }
   if (values.processingMin <= 0) values.processingAfterMin = 0;
-  if (id) await db.update(services).set(values).where(and(eq(services.id, id), eq(services.salonId, salon.id)));
-  else await db.insert(services).values({ ...values, active: true, salonId: salon.id });
+  if (id) {
+    const before = await db.query.services.findFirst({ where: and(eq(services.id, id), eq(services.salonId, salon.id)) });
+    // Skifter ydelsen kategori, lægges den nederst i den nye.
+    const position = before && before.categoryId !== values.categoryId ? await nextServicePosition(db, salon.id, values.categoryId) : undefined;
+    await db.update(services).set({ ...values, position }).where(and(eq(services.id, id), eq(services.salonId, salon.id)));
+  } else {
+    const position = await nextServicePosition(db, salon.id, values.categoryId);
+    await db.insert(services).values({ ...values, position, active: true, salonId: salon.id });
+  }
   redirect("/admin/indstillinger");
 }
 

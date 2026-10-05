@@ -22,6 +22,13 @@ Anden runde fra researchen:
 | Farve med virketid | `/admin/indstillinger` og kalenderen | Virker. Mens farven sidder, kan frisøren tage en anden kunde, og kalenderen viser virketiden |
 | Genbooking efter kundens rytme | `/admin/kunder` og SMS | Virker. Kunder der har sagt ja, får en SMS, når det er tid til næste besøg |
 
+Salonens eget design:
+
+| Funktion | Hvor | Status |
+|---|---|---|
+| Kategorier for ydelser | `/admin/indstillinger` | Virker. Fx Herre, Dame og Børn med egen rækkefølge. Ydelserne kan også sorteres og få en beskrivelse |
+| Blokeditor til bookingsiden | `/admin/design` | Virker. Salonen vælger, sorterer og skjuler blokke (forside med logo og billede, tekst, besked, ydelser, medarbejdere, åbningstider, kontakt) og vælger farver, skrift og hjørner. Forhåndsvisning på en mobil ved siden af |
+
 Derudover: ydelser og arbejdstider kan redigeres under `/admin/indstillinger`, og kundelisten kan hentes som CSV under `/admin/kunder` ("dine kunder er dine").
 
 ## Kom i gang
