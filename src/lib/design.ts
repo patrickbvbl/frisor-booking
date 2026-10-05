@@ -7,6 +7,7 @@ import { z } from "zod";
  */
 
 export const FONTS = {
+  manrope: "Premium (Manrope)",
   youngserif: "Skilt (Young Serif)",
   atkinson: "Letlæst (Atkinson Hyperlegible)",
   system: "Systemets egen",
@@ -82,8 +83,8 @@ export type Design = { theme: Theme; blocks: Block[] };
 export const DEFAULT_THEME: Theme = {
   accent: "#1e1b18",
   background: "#f4efe6",
-  headingFont: "youngserif",
-  bodyFont: "atkinson",
+  headingFont: "manrope",
+  bodyFont: "manrope",
   corners: "soft",
 };
 
