@@ -22,6 +22,14 @@ Anden runde fra researchen:
 | Farve med virketid | `/admin/indstillinger` og kalenderen | Virker. Mens farven sidder, kan frisøren tage en anden kunde, og kalenderen viser virketiden |
 | Genbooking efter kundens rytme | `/admin/kunder` og SMS | Virker. Kunder der har sagt ja, får en SMS, når det er tid til næste besøg |
 
+Tredje runde, hvor vi mangler noget de andre har, eller kan skille os ud:
+
+| Funktion | Hvor | Status |
+|---|---|---|
+| Kundekort med historik | `/admin/kunder/<id>` og kalenderen | Virker. Alle besøg med ydelse, frisør og pris, nøgletal, fast note og en note pr. besøg (fx farveformel). Kalenderen viser noten fra sidste besøg |
+| Kunden flytter selv sin tid | Linket i SMS'en (`/b/<token>/flyt`) | Virker. Samme frist som gratis afbud. Depositum følger med, og den gamle tid tilbydes ventelisten |
+| Depositum kun for dem der udebliver | `/admin/indstillinger` og kundekortet | Virker. Salonen vælger om alle eller kun kunder med udeblivelser skal betale depositum, og kan tilgive eller kræve det af den enkelte kunde |
+
 Salonens eget design:
 
 | Funktion | Hvor | Status |
@@ -84,7 +92,8 @@ Bookingsiden ligger derefter på `https://<projekt>.vercel.app/book/demo` og kal
 1. Har ydelsen et depositum, holdes tiden i 15 minutter, mens kunden betaler med MobilePay.
 2. Når MobilePay melder at beløbet er reserveret, bekræftes tiden og kunden får en SMS.
 3. Kommer betalingen for sent, og tiden er givet væk, frigives beløbet automatisk.
-4. Aflyser kunden mindst 24 timer før (kan ændres pr. salon), frigives depositum. Senere end det beholder salonen det.
+4. Aflyser kunden mindst 24 timer før (kan ændres under indstillinger), frigives depositum. Senere end det beholder salonen det.
+5. Vælger salonen "kun kunder der er udeblevet", kræves depositum først, når kunden har det antal udeblivelser, salonen har valgt. Salonens valg på kundekortet ("kræv altid" eller "aldrig") vinder over reglen.
 5. Udebliver kunden, trækkes depositum. Aflyser salonen, får kunden det altid tilbage.
 
 **Venteliste** (`src/lib/waitlist.ts`): kunden vælger dag, ydelse, frisør (eller alle) og formiddag, eftermiddag eller hele dagen. Når en tid bliver ledig ved aflysning eller en betaling der fejler, får de første tre i køen, som den ledige tid passer til, en SMS med et link. Tiden holdes ikke, så den der først booker, får den, og de andre bliver stående på listen. Salonen kan også selv sende de ledige tider ud fra `/admin/venteliste`, fx efter at have givet en frisør ekstra timer. Booker kunden en tid samme dag på anden vis, lukkes pladsen automatisk.

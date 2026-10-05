@@ -6,7 +6,7 @@ import { listCategories } from "@/lib/categories";
 import { groupServices } from "@/lib/design";
 import { str } from "@/lib/server";
 import { minutesToHhmm } from "@/lib/time";
-import { saveServiceAction, saveStaffAction } from "../actions";
+import { savePolicyAction, saveServiceAction, saveStaffAction } from "../actions";
 import { MoveButtons } from "../move-buttons";
 import {
   deleteCategoryAction,
@@ -23,7 +23,8 @@ const kroner = (ore: number) => String(ore / 100).replace(".", ",");
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { db, salon } = await requireAdmin();
-  const error = str((await searchParams).fejl);
+  const q = await searchParams;
+  const error = str(q.fejl);
   const [services, team, categories] = await Promise.all([
     listServices(db, salon.id, false),
     listStaff(db, salon.id, false),
@@ -38,6 +39,40 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <main className="page">
       <h1>Ydelser og medarbejdere</h1>
       {error && <div className="alert">{error}</div>}
+
+      <h2>Afbud og depositum</h2>
+      {str(q.gemt) === "regler" && <div className="alert ok">Reglerne er gemt.</div>}
+      <form action={savePolicyAction} className="card stack">
+        <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Hvem skal betale depositum?</legend>
+          <label className="row" style={{ fontWeight: "normal" }}>
+            <input type="radio" name="depositMode" value="always" defaultChecked={salon.depositMode === "always"} /> Alle kunder, på ydelser med depositum
+          </label>
+          <label className="row" style={{ fontWeight: "normal" }}>
+            <input type="radio" name="depositMode" value="no_show" defaultChecked={salon.depositMode === "no_show"} /> Kun kunder der er udeblevet
+            mindst
+            <input
+              name="depositAfterNoShows"
+              type="number"
+              min={1}
+              max={10}
+              defaultValue={salon.depositAfterNoShows}
+              aria-label="Antal udeblivelser"
+              style={{ width: 64 }}
+            />
+            {salon.depositAfterNoShows === 1 ? "gang" : "gange"}
+          </label>
+        </fieldset>
+        <p className="muted small" style={{ margin: 0 }}>
+          Med den sidste regel booker trofaste kunder uden at betale noget på forhånd. Beløbet er ydelsens depositum. På kundekortet kan du
+          altid kræve depositum af en bestemt kunde eller tilgive en, der er udeblevet.
+        </p>
+        <label style={{ maxWidth: 320 }}>
+          Gratis afbud og flytning indtil (timer før)
+          <input name="cancellationHours" type="number" min={0} max={168} defaultValue={salon.cancellationHours} />
+        </label>
+        <button className="secondary small" type="submit" style={{ justifySelf: "start" }}>Gem regler</button>
+      </form>
 
       <h2 id="kategorier">Kategorier</h2>
       <p className="muted small">

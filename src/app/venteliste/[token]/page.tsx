@@ -58,7 +58,7 @@ export default async function WaitlistPage({ params, searchParams }: Props) {
 
       {waiting && slots.length > 0 && (
         <section style={{ marginTop: 16 }}>
-          <p className="small">Først til mølle. Tryk på en tid for at booke den{service.depositOre > 0 ? ` (depositum ${kr(service.depositOre)} med MobilePay)` : ""}.</p>
+          <p className="small">Først til mølle. Tryk på en tid for at booke den{service.depositOre > 0 && salon.depositMode === "always" ? ` (depositum ${kr(service.depositOre)} med MobilePay)` : ""}.</p>
           <div className="slots">
             {slots.map((s) => (
               <form key={s.start.toISOString()} action={bookFromWaitlistAction}>

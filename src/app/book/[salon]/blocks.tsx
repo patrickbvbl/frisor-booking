@@ -12,6 +12,8 @@ export type PageData = {
   team: Staff[];
   opening: OpeningDay[];
   memberId: number | null;
+  // Med "kun for dem der udebliver" vises depositum ikke på forhånd.
+  depositForAll: boolean;
   href: (p: Record<string, string | undefined>) => string;
 };
 
@@ -132,7 +134,7 @@ function ServicesBlock({ props, data, children }: { props: BlockProps<"services"
               </span>
               <span style={{ textAlign: "right" }}>
                 {props.showPrices && kr(s.priceOre)}
-                {s.depositOre > 0 && (
+                {s.depositOre > 0 && data.depositForAll && (
                   <>
                     {props.showPrices && <br />}
                     <span className="badge">Depositum {kr(s.depositOre)}</span>

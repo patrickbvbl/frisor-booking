@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { bookings, serviceCategories, services, staff, workingHours } from "@/db/schema";
+import { bookings, salons, serviceCategories, services, staff, workingHours } from "@/db/schema";
 import { endSession, requireAdmin } from "@/lib/auth";
 import { BookingError, cancelBooking, defaultDeps, setOutcome } from "@/lib/booking";
 import { nextServicePosition } from "@/lib/categories";
@@ -87,6 +87,22 @@ export async function saveServiceAction(formData: FormData) {
     await db.insert(services).values({ ...values, position, active: true, salonId: salon.id });
   }
   redirect("/admin/indstillinger");
+}
+
+/** Salonens regler for afbud og depositum. */
+export async function savePolicyAction(formData: FormData) {
+  const { db, salon } = await requireAdmin();
+  const hours = Math.round(Number(str(formData.get("cancellationHours"))));
+  const noShows = Math.round(Number(str(formData.get("depositAfterNoShows"))));
+  await db
+    .update(salons)
+    .set({
+      cancellationHours: Number.isFinite(hours) && hours >= 0 && hours <= 168 ? hours : salon.cancellationHours,
+      depositMode: str(formData.get("depositMode")) === "no_show" ? "no_show" : "always",
+      depositAfterNoShows: Number.isFinite(noShows) && noShows >= 1 && noShows <= 10 ? noShows : salon.depositAfterNoShows,
+    })
+    .where(eq(salons.id, salon.id));
+  redirect("/admin/indstillinger?gemt=regler");
 }
 
 export async function saveStaffAction(formData: FormData) {

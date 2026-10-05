@@ -41,7 +41,9 @@ export default async function CustomersPage() {
           <tbody>
             {rows.map((c) => (
               <tr key={c.id}>
-                <td>{c.name}</td>
+                <td>
+                  <Link href={`/admin/kunder/${c.id}`}>{c.name}</Link>
+                </td>
                 <td>
                   <a href={`tel:${c.phone}`}>{displayPhone(c.phone)}</a>
                 </td>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { customerCanCancelFree, getBookingDetails } from "@/lib/booking";
+import { customerCanCancelFree, customerCanReschedule, getBookingDetails } from "@/lib/booking";
 import { clock, displayPhone, kr, longDate } from "@/lib/format";
 import { appDb, str } from "@/lib/server";
 import { toZoned } from "@/lib/time";
@@ -26,6 +26,7 @@ export default async function BookingPage({ params, searchParams }: Props) {
   const holdActive = booking.status === "pending_payment" && booking.holdExpiresAt && booking.holdExpiresAt > now;
   const canCancel = ["confirmed", "pending_payment"].includes(booking.status) && booking.startsAt > now;
   const freeCancel = customerCanCancelFree(booking, salon, now);
+  const canMove = customerCanReschedule(booking, salon, now);
 
   return (
     <main className="page narrow">
@@ -40,7 +41,8 @@ export default async function BookingPage({ params, searchParams }: Props) {
       </h1>
 
       {message === "aflyst" && <div className="alert ok">Din tid er aflyst. Du får en SMS som bekræftelse.</div>}
-      {message && message !== "aflyst" && message !== "stop" && <div className="alert">{message}</div>}
+      {message === "flyttet" && <div className="alert ok">Din tid er flyttet. Du får en SMS med den nye tid.</div>}
+      {message && !["aflyst", "flyttet", "stop"].includes(message) && <div className="alert">{message}</div>}
       {str(q.ny) && booking.status === "confirmed" && <div className="alert ok">Du får en SMS med bekræftelsen om lidt.</div>}
 
       <div className="card" style={{ marginTop: 16 }}>
@@ -102,8 +104,19 @@ export default async function BookingPage({ params, searchParams }: Props) {
         </p>
       )}
 
+      {canMove && (
+        <p style={{ marginTop: 24 }}>
+          <Link className="button secondary full" href={`/b/${booking.token}/flyt`}>Flyt tiden</Link>
+        </p>
+      )}
+      {booking.status === "confirmed" && booking.startsAt > now && !canMove && (
+        <p className="muted small" style={{ marginTop: 24 }}>
+          Der er under {salon.cancellationHours} timer til din tid, så den kan ikke flyttes her. Ring til salonen, hvis du har brug for en anden tid.
+        </p>
+      )}
+
       {canCancel && (
-        <form action={cancelAction} style={{ marginTop: 24 }} className="stack">
+        <form action={cancelAction} style={{ marginTop: canMove ? 8 : 24 }} className="stack">
           <input type="hidden" name="token" value={booking.token} />
           {booking.depositOre > 0 && booking.status === "confirmed" && (
             <p className="small muted" style={{ margin: 0 }}>
