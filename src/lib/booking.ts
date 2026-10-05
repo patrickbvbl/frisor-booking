@@ -14,7 +14,7 @@ import {
   type Service,
   type Staff,
 } from "@/db/schema";
-import { computeSlots } from "./availability";
+import { busyParts, computeSlots, overlaps, segmentIntervals, serviceSegments } from "./availability";
 import { clock, kr, longDate, normalizePhone } from "./format";
 import { getPaymentProvider, type PaymentProvider, type ProviderEvent } from "./payments";
 import { getSmsProvider, sendSms, type SmsProvider } from "./sms";
@@ -96,7 +96,13 @@ export async function getAvailability(
   const [hours, existing] = await Promise.all([
     db.select().from(workingHours).where(and(inArray(workingHours.staffId, ids), eq(workingHours.weekday, weekdayOf(date)))),
     db
-      .select({ staffId: bookings.staffId, start: bookings.startsAt, end: bookings.endsAt })
+      .select({
+        staffId: bookings.staffId,
+        start: bookings.startsAt,
+        end: bookings.endsAt,
+        processingStart: bookings.processingStartsAt,
+        processingEnd: bookings.processingEndsAt,
+      })
       .from(bookings)
       .where(and(inArray(bookings.staffId, ids), lt(bookings.startsAt, dayEnd), gt(bookings.endsAt, dayStart), blocksTime(now))),
   ]);
@@ -107,8 +113,9 @@ export async function getAvailability(
       date,
       tz: salon.timezone,
       windows: hours.filter((h) => h.staffId === member.id),
-      busy: existing.filter((b) => b.staffId === member.id),
+      busy: existing.filter((b) => b.staffId === member.id).flatMap(busyParts),
       durationMin: service.durationMin,
+      segments: serviceSegments(service),
       now,
     });
     for (const s of slots) {
@@ -129,6 +136,8 @@ export type CreateBookingInput = {
   phone: string;
   email?: string;
   note?: string;
+  /** Kunden vil have en SMS, når det er tid til næste besøg. Et nej fjerner ikke et tidligere ja. */
+  rebookOptIn?: boolean;
 };
 
 export type CreateBookingResult = { booking: Booking; redirectUrl: string | null };
@@ -148,6 +157,8 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
 
   const date = toZoned(input.start, salon.timezone).date;
   const end = new Date(input.start.getTime() + service.durationMin * 60000);
+  const parts = segmentIntervals(input.start, serviceSegments(service));
+  const processing = parts.length === 2 ? { start: parts[0].end, end: parts[1].start } : null;
 
   const booking = await db.transaction(async (tx) => {
     const t = tx as unknown as Db;
@@ -167,10 +178,14 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
 
     const [customer] = await tx
       .insert(customers)
-      .values({ salonId: salon.id, name, phone, email: input.email?.trim() || null })
+      .values({ salonId: salon.id, name, phone, email: input.email?.trim() || null, rebookOptIn: !!input.rebookOptIn })
       .onConflictDoUpdate({
         target: [customers.salonId, customers.phone],
-        set: { name, email: sql`coalesce(excluded.email, ${customers.email})` },
+        set: {
+          name,
+          email: sql`coalesce(excluded.email, ${customers.email})`,
+          rebookOptIn: sql`${customers.rebookOptIn} or excluded.rebook_opt_in`,
+        },
       })
       .returning();
 
@@ -184,6 +199,8 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
         customerId: customer.id,
         startsAt: input.start,
         endsAt: end,
+        processingStartsAt: processing?.start ?? null,
+        processingEndsAt: processing?.end ?? null,
         createdAt: deps.now,
         status: needsDeposit ? "pending_payment" : "confirmed",
         priceOre: service.priceOre,
@@ -255,8 +272,13 @@ export async function handlePaymentEvent(db: Db, reference: string, event: Provi
 
   if (booking.status === "pending_payment" || booking.status === "expired") {
     // Kom betalingen efter holdetiden, er tiden måske givet til en anden imellemtiden.
-    const clash = await db
-      .select({ id: bookings.id })
+    const candidates = await db
+      .select({
+        start: bookings.startsAt,
+        end: bookings.endsAt,
+        processingStart: bookings.processingStartsAt,
+        processingEnd: bookings.processingEndsAt,
+      })
       .from(bookings)
       .where(
         and(
@@ -267,7 +289,10 @@ export async function handlePaymentEvent(db: Db, reference: string, event: Provi
           blocksTime(deps.now),
         ),
       );
-    if (clash.length > 0) {
+    // Virketid tæller ikke som optaget, så en kunde kan sidde i hullet på en anden.
+    const mine = busyParts({ start: booking.startsAt, end: booking.endsAt, processingStart: booking.processingStartsAt, processingEnd: booking.processingEndsAt });
+    const clash = candidates.some((c) => busyParts(c).some((p) => mine.some((m) => overlaps(p, m))));
+    if (clash) {
       await deps.payments.cancel(reference);
       await db.update(payments).set({ status: "cancelled", updatedAt: deps.now }).where(eq(payments.reference, reference));
       await db.update(bookings).set({ status: "expired" }).where(eq(bookings.id, booking.id));
