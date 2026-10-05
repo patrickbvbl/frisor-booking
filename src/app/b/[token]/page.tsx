@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { customerCanCancelFree, customerCanReschedule, getBookingDetails } from "@/lib/booking";
-import { clock, displayPhone, kr, longDate } from "@/lib/format";
+import { displayPhone, kr } from "@/lib/format";
 import { appDb, str } from "@/lib/server";
-import { toZoned } from "@/lib/time";
+import { parseDesign } from "@/lib/design";
+import { SalonTheme } from "../../book/salon-theme";
+import { AppointmentCard } from "./appointment-card";
 import { cancelAction, rebookOptOutAction } from "./actions";
 
 type Props = {
@@ -29,6 +31,7 @@ export default async function BookingPage({ params, searchParams }: Props) {
   const canMove = customerCanReschedule(booking, salon, now);
 
   return (
+    <SalonTheme theme={parseDesign(salon.design).theme}>
     <main className="page narrow">
       <p className="muted small" style={{ margin: 0 }}>{salon.name}</p>
       <h1>
@@ -45,37 +48,26 @@ export default async function BookingPage({ params, searchParams }: Props) {
       {message && !["aflyst", "flyttet", "stop"].includes(message) && <div className="alert">{message}</div>}
       {str(q.ny) && booking.status === "confirmed" && <div className="alert ok">Du får en SMS med bekræftelsen om lidt.</div>}
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <dl className="summary">
-          <dt>Hvornår</dt>
-          <dd>
-            {longDate(toZoned(booking.startsAt, tz).date)} kl. {clock(booking.startsAt, tz)} til {clock(booking.endsAt, tz)}
-          </dd>
-          <dt>Hvad</dt>
-          <dd>{service.name}</dd>
-          <dt>Hos</dt>
-          <dd>{staff.name}</dd>
-          <dt>Pris</dt>
-          <dd>{kr(booking.priceOre)}</dd>
-          {booking.depositOre > 0 && (
-            <>
-              <dt>Depositum</dt>
-              <dd>
-                {kr(booking.depositOre)}{" "}
-                {payment?.status === "authorized" && <span className="badge">Reserveret</span>}
-                {payment?.status === "captured" && <span className="badge neutral">Trukket</span>}
-                {(payment?.status === "cancelled" || payment?.status === "refunded") && <span className="badge neutral">Frigivet</span>}
-              </dd>
-            </>
-          )}
-          {salon.address && (
-            <>
-              <dt>Adresse</dt>
-              <dd>{salon.address}</dd>
-            </>
-          )}
-        </dl>
-      </div>
+      <AppointmentCard
+        booking={booking}
+        salon={salon}
+        service={service}
+        staff={staff}
+        deposit={
+          <>
+            {kr(booking.depositOre)}{" "}
+            {payment?.status === "authorized" && <span className="tag">Reserveret</span>}
+            {payment?.status === "captured" && <span className="tag">Trukket</span>}
+            {(payment?.status === "cancelled" || payment?.status === "refunded") && <span className="tag">Frigivet</span>}
+          </>
+        }
+      />
+
+      {booking.status === "confirmed" && booking.startsAt > now && (
+        <p className="small" style={{ marginTop: 12 }}>
+          <a href={`/b/${booking.token}/kalender`}>Læg tiden i din kalender</a>
+        </p>
+      )}
 
       {holdActive && payment?.redirectUrl && (
         <p>
@@ -153,5 +145,6 @@ export default async function BookingPage({ params, searchParams }: Props) {
         </p>
       )}
     </main>
+    </SalonTheme>
   );
 }

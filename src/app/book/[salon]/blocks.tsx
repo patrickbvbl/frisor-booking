@@ -115,34 +115,24 @@ function ServicesBlock({ props, data, children }: { props: BlockProps<"services"
               {g.description && <p className="muted small" style={{ margin: 0 }}>{g.description}</p>}
             </div>
           )}
-          {g.services.map((s) => (
-            <Link key={s.id} className="card link-card" href={href({ ydelse: String(s.id) })}>
-              <span>
-                <strong>{s.name}</strong>
-                {s.description && (
-                  <>
-                    <br />
-                    <span className="muted small">{s.description}</span>
-                  </>
-                )}
-                {props.showDuration && (
-                  <>
-                    <br />
-                    <span className="muted small">{s.durationMin} min</span>
-                  </>
-                )}
-              </span>
-              <span style={{ textAlign: "right" }}>
-                {props.showPrices && kr(s.priceOre)}
-                {s.depositOre > 0 && data.depositForAll && (
-                  <>
-                    {props.showPrices && <br />}
-                    <span className="badge">Depositum {kr(s.depositOre)}</span>
-                  </>
-                )}
-              </span>
-            </Link>
-          ))}
+          {/* Som prislisten på salonens væg: navn, prikker og pris på én linje. Ingen kasse om hver ydelse. */}
+          <ul className="price-list">
+            {g.services.map((s) => (
+              <li key={s.id}>
+                <Link className="price-row" href={href({ ydelse: String(s.id) })}>
+                  <span className="price-name">{s.name}</span>
+                  <span className="price-leader" aria-hidden />
+                  <span className="price-amount">{props.showPrices && kr(s.priceOre)}</span>
+                  {(s.description || props.showDuration || (s.depositOre > 0 && data.depositForAll)) && (
+                    <span className="price-meta">
+                      {[props.showDuration ? `${s.durationMin} min` : "", s.description].filter(Boolean).join(". ")}
+                      {s.depositOre > 0 && data.depositForAll && <span className="tag">Depositum {kr(s.depositOre)}</span>}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       ))}
       {groups.length === 0 && <div className="card muted">Der er ingen ydelser at booke lige nu.</div>}
