@@ -5,6 +5,7 @@ import { clock } from "@/lib/format";
 import { toZoned } from "@/lib/time";
 
 const KIND: Record<string, string> = { confirmation: "Bekræftelse", reminder: "Påmindelse", cancellation: "Aflysning",
+  rescheduled: "Flyttet",
   waitlist: "Venteliste",
   waitlist_offer: "Ledig tid",
   rebook: "Genbooking",

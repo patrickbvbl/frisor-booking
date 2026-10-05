@@ -9,6 +9,9 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+export const DEPOSIT_MODES = ["always", "no_show"] as const;
+export type DepositMode = (typeof DEPOSIT_MODES)[number];
+
 export const salons = pgTable("salons", {
   id: serial("id").primaryKey(),
   slug: text("slug").notNull().unique(),
@@ -18,6 +21,9 @@ export const salons = pgTable("salons", {
   timezone: text("timezone").notNull().default("Europe/Copenhagen"),
   // Hvor mange timer før en tid kunden kan aflyse og få depositum retur.
   cancellationHours: integer("cancellation_hours").notNull().default(24),
+  // "always": ydelsens depositum kræves af alle. "no_show": kun af kunder der er udeblevet mindst depositAfterNoShows gange.
+  depositMode: text("deposit_mode").$type<DepositMode>().notNull().default("always"),
+  depositAfterNoShows: integer("deposit_after_no_shows").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -57,6 +63,9 @@ export const services = pgTable("services", {
   active: boolean("active").notNull().default(true),
 });
 
+export const DEPOSIT_OVERRIDES = ["always", "never"] as const;
+export type DepositOverride = (typeof DEPOSIT_OVERRIDES)[number];
+
 export const customers = pgTable(
   "customers",
   {
@@ -70,6 +79,8 @@ export const customers = pgTable(
     // Kunden har sagt ja til en SMS, når det er tid til næste besøg. SMS-markedsføring kræver samtykke.
     rebookOptIn: boolean("rebook_opt_in").notNull().default(false),
     rebookRemindedAt: timestamp("rebook_reminded_at", { withTimezone: true }),
+    // Salonens valg for netop denne kunde. null = følg salonens regel.
+    depositOverride: text("deposit_override").$type<DepositOverride>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("customers_salon_phone_idx").on(t.salonId, t.phone)],
@@ -104,12 +115,17 @@ export const bookings = pgTable(
     // Hemmeligt token til kundens link (se, aflys). Kunden behøver ikke login.
     token: text("token").notNull().unique(),
     note: text("note"),
+    // Salonens egen note om besøget, fx farveformel eller hvad der blev klippet. Vises i kundens historik.
+    visitNote: text("visit_note"),
     holdExpiresAt: timestamp("hold_expires_at", { withTimezone: true }),
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    // Sidste gang kunden selv flyttede tiden.
+    rescheduledAt: timestamp("rescheduled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("bookings_customer_idx").on(t.customerId),
     index("bookings_staff_time_idx").on(t.staffId, t.startsAt),
     index("bookings_salon_time_idx").on(t.salonId, t.startsAt),
   ],

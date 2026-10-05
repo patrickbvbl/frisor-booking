@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { getBookingDetails, getDayCalendar } from "@/lib/booking";
+import { lastVisitNote } from "@/lib/customers";
 import { capitalize, clock, displayPhone, kr, longDate } from "@/lib/format";
 import { str } from "@/lib/server";
 import { addDays, isIsoDate, minutesToHhmm, toZoned } from "@/lib/time";
 import type { BookingStatus } from "@/db/schema";
 import { bookingAction } from "./actions";
+import { VisitNoteForm } from "./visit-note-form";
 
 const PX_PER_MIN = 1.3;
 
@@ -32,6 +34,7 @@ export default async function CalendarPage({ searchParams }: Props) {
   const cal = await getDayCalendar(db, salon, date);
   const selected = selectedId ? await getBookingDetails(db, { id: selectedId }) : undefined;
   const selectedOk = selected && selected.salon.id === salon.id ? selected : undefined;
+  const lastNote = selectedOk ? await lastVisitNote(db, selectedOk.customer.id, selectedOk.booking.startsAt) : undefined;
 
   // Vis fra første arbejdstime til sidste, mindst 9 til 17, og altid hele bookinger.
   const mins = cal.bookings.map((b) => ({
@@ -159,7 +162,9 @@ export default async function CalendarPage({ searchParams }: Props) {
         {selectedOk && (
           <aside className="card" style={{ alignSelf: "start" }}>
             <div className="spread">
-              <strong>{selectedOk.customer.name}</strong>
+              <Link href={`/admin/kunder/${selectedOk.customer.id}`}>
+                <strong>{selectedOk.customer.name}</strong>
+              </Link>
               <Link className="small" href={`/admin?dato=${date}`} scroll={false}>Luk</Link>
             </div>
             <p style={{ margin: "4px 0 12px" }}>
@@ -204,7 +209,27 @@ export default async function CalendarPage({ searchParams }: Props) {
                   <dd>{selectedOk.booking.note}</dd>
                 </>
               )}
+              {selectedOk.customer.note && (
+                <>
+                  <dt>Kundenote</dt>
+                  <dd>{selectedOk.customer.note}</dd>
+                </>
+              )}
+              {lastNote && (
+                <>
+                  <dt>Sidst</dt>
+                  <dd>
+                    {lastNote.note} <span className="muted">({lastNote.serviceName}, {toZoned(lastNote.startsAt, tz).date})</span>
+                  </dd>
+                </>
+              )}
             </dl>
+            {selectedOk.booking.status === "completed" && (
+              <VisitNoteForm bookingId={selectedOk.booking.id} value={selectedOk.booking.visitNote} back={back} />
+            )}
+            <p className="small" style={{ margin: "12px 0 0" }}>
+              <Link href={`/admin/kunder/${selectedOk.customer.id}`}>Se kundekort og historik</Link>
+            </p>
             {["confirmed", "completed", "no_show", "pending_payment"].includes(selectedOk.booking.status) && (
               <div className="stack" style={{ marginTop: 16 }}>
                 {selectedOk.booking.status !== "pending_payment" && (

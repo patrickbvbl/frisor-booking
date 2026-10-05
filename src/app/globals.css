@@ -243,7 +243,8 @@ select:focus {
   outline-offset: 1px;
 }
 
-input[type="checkbox"] {
+input[type="checkbox"],
+input[type="radio"] {
   width: auto;
   min-height: 0;
 }
@@ -381,6 +382,35 @@ input[type="checkbox"] {
   .cal-layout.with-panel {
     grid-template-columns: 1fr 320px;
   }
+}
+
+.card-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .card-layout {
+    grid-template-columns: 1fr 320px;
+  }
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.text-danger {
+  color: var(--danger);
 }
 
 .cal-scroll {
