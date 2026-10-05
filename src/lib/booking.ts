@@ -35,8 +35,15 @@ export function defaultDeps(): Deps {
     now: new Date(),
     sms: getSmsProvider(),
     payments: getPaymentProvider(),
-    appUrl: process.env.APP_URL ?? "http://localhost:3000",
+    appUrl: appUrl(),
   };
+}
+
+/** Offentlig adresse til links i SMS. Falder tilbage på Vercels produktionsdomæne, hvis APP_URL ikke er sat. */
+export function appUrl(): string {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return "http://localhost:3000";
 }
 
 export class BookingError extends Error {}
@@ -176,6 +183,7 @@ export async function createBooking(db: Db, input: CreateBookingInput, deps: Dep
         customerId: customer.id,
         startsAt: input.start,
         endsAt: end,
+        createdAt: deps.now,
         status: needsDeposit ? "pending_payment" : "confirmed",
         priceOre: service.priceOre,
         depositOre: service.depositOre,

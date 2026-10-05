@@ -33,6 +33,20 @@ npm run typecheck
 npm run build
 ```
 
+## Læg den online på Vercel
+
+Det tager omkring ti minutter og er gratis. SMS og MobilePay forbliver testudgaver, så ingen får rigtige beskeder eller bliver trukket penge.
+
+1. Opret en konto på [vercel.com](https://vercel.com/signup) med "Continue with GitHub".
+2. Klik **Add New, Project**, vælg `frisor-booking` og klik **Import**. Giv Vercel adgang til repoet, hvis det ikke står på listen.
+3. Åbn **Environment Variables** på samme side og tilføj `ADMIN_PASSWORD` (kodeord til `/admin`) og `CRON_SECRET` (en lang tilfældig tekst). Klik **Deploy**. Første deploy fejler med "DATABASE_URL mangler", det er forventet.
+4. Gå til projektets fane **Storage**, klik **Create Database**, vælg **Neon** (Postgres, gratis plan), region Frankfurt, og forbind den til projektet. Det sætter `DATABASE_URL` automatisk.
+5. Gå til **Deployments**, klik på de tre prikker ved seneste deploy og vælg **Redeploy**.
+
+Hver deploy kører `npm run db:setup` før build (se `vercel.json`), som opdaterer databasen og opretter demosalonen "Salon Saks", hvis den mangler. Links i SMS bruger automatisk projektets Vercel-adresse, medmindre `APP_URL` er sat, fx når der kommer et rigtigt domæne.
+
+Bookingsiden ligger derefter på `https://<projekt>.vercel.app/book/demo` og kalenderen på `/admin`.
+
 ## Teknologivalg
 
 | Valg | Hvorfor |
@@ -41,7 +55,7 @@ npm run build
 | **Postgres med Drizzle ORM** | Rigtig database fra dag ét med transaktioner og låse, så to kunder ikke kan få samme tid. Lokalt PGlite, i produktion en hostet Postgres (fx Neon eller Supabase) via `DATABASE_URL` |
 | **Server actions og almindelige formularer** | Ingen separat API at vedligeholde. Hvert trin i bookingen er en URL, som kan deles og linkes til fra Instagram eller Google |
 | **Udbydere bag et interface** | `src/lib/sms.ts` og `src/lib/payments.ts`. Mock nu, rigtig udbyder senere uden at røre bookinglogikken |
-| **Vercel** som foreslået hosting | Gratis at starte, og `vercel.json` kører påmindelser hver time |
+| **Vercel** som hosting | Gratis at starte. `vercel.json` migrerer databasen ved hver deploy og kører påmindelser |
 
 ## Sådan virker det
 
@@ -57,7 +71,7 @@ npm run build
 4. Aflyser kunden mindst 24 timer før (kan ændres pr. salon), frigives depositum. Senere end det beholder salonen det.
 5. Udebliver kunden, trækkes depositum. Aflyser salonen, får kunden det altid tilbage.
 
-**Påmindelser** sendes 24 timer før til bekræftede tider, der er booket mere end et døgn i forvejen. `GET /api/cron/reminders` med `Authorization: Bearer $CRON_SECRET` kører dem, og det kan kaldes så ofte man vil uden dobbelte SMS'er. Bemærk at Vercels gratis plan kun kører cron én gang i døgnet.
+**Påmindelser** sendes 24 timer før til bekræftede tider, der er booket mere end et døgn i forvejen. `GET /api/cron/reminders` med `Authorization: Bearer $CRON_SECRET` kører dem, og det kan kaldes så ofte man vil uden dobbelte SMS'er. `vercel.json` kører dem én gang i døgnet kl. 7 UTC, da Vercels gratis plan ikke tillader oftere. Med Pro kan tidsplanen sættes til hver time (`0 * * * *`).
 
 ## Det mangler før rigtige kunder
 
@@ -69,4 +83,4 @@ npm run build
 
 ## Miljøvariabler
 
-Se `.env.example`. I produktion skal `DATABASE_URL`, `ADMIN_PASSWORD`, `APP_URL` og `CRON_SECRET` sættes.
+Se `.env.example`. I produktion skal `DATABASE_URL`, `ADMIN_PASSWORD` og `CRON_SECRET` sættes. `APP_URL` er valgfri på Vercel.

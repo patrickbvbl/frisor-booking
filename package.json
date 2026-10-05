@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:setup": "tsx scripts/setup-db.ts",
     "reminders": "tsx scripts/send-reminders.ts"
   },
   "dependencies": {

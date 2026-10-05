@@ -26,8 +26,8 @@ export interface PaymentProvider {
 export const mockPaymentProvider: PaymentProvider = {
   name: "mock",
   async createPayment({ reference }) {
-    const base = process.env.APP_URL ?? "http://localhost:3000";
-    return { redirectUrl: `${base}/pay/mock/${encodeURIComponent(reference)}` };
+    // Relativ adresse, så testbetalingen også virker på Vercels preview-links.
+    return { redirectUrl: `/pay/mock/${encodeURIComponent(reference)}` };
   },
   async capture() {},
   async cancel() {},

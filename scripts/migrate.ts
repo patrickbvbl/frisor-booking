@@ -1,6 +1,5 @@
-import { getDb } from "@/db/client";
+import { createDb } from "@/db/client";
 
-// getDb kører migrationerne, når forbindelsen oprettes.
-await getDb();
+await createDb({ url: process.env.DATABASE_URL || undefined });
 console.log("Databasen er opdateret.");
 process.exit(0);
