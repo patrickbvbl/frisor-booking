@@ -28,5 +28,6 @@ export async function saveVisitNoteAction(formData: FormData) {
   const { db, salon } = await requireAdmin();
   await setVisitNote(db, salon.id, Number(str(formData.get("bookingId"))), str(formData.get("visitNote")));
   const back = new URL(str(formData.get("back")) || "/admin", "http://x");
+  revalidatePath(back.pathname);
   redirect(back.pathname + back.search);
 }

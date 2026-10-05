@@ -193,13 +193,15 @@ button.secondary,
   color: var(--accent);
 }
 
-button.danger {
+button.danger,
+.button.danger {
   background: transparent;
   border-color: var(--danger);
   color: var(--danger);
 }
 
-button.mp {
+button.mp,
+.button.mp {
   background: var(--mp);
   border-color: var(--mp);
   color: #fff;
@@ -266,6 +268,12 @@ input[type="radio"] {
 .steps span.done {
   border-color: var(--accent);
   color: var(--text);
+}
+
+.steps span.current {
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 700;
 }
 
 .chips {
@@ -354,10 +362,30 @@ input[type="radio"] {
   padding-bottom: 10px;
 }
 
+.topbar-inner {
+  display: grid;
+  gap: 6px;
+}
+
+.topbar-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-top a {
+  color: var(--text);
+}
+
+/* På mobilen ligger menuen på én linje, som man kan skubbe til siden. */
 .topbar nav {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -10px;
+  padding: 0 10px 2px;
 }
 
 .topbar nav a {
@@ -366,10 +394,57 @@ input[type="radio"] {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .topbar nav a:hover {
   background: var(--accent-soft);
+}
+
+.topbar nav a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (min-width: 1100px) {
+  .topbar-inner {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+  }
+
+  .topbar-top {
+    display: contents;
+  }
+
+  .topbar-top > .row {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .topbar nav {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.jump-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: -8px 0 8px;
+}
+
+label.row {
+  flex-wrap: nowrap;
+}
+
+label.row input[type="checkbox"],
+label.row input[type="radio"] {
+  flex-shrink: 0;
 }
 
 .cal-layout {
@@ -794,4 +869,9 @@ input[type="color"] {
 button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Telefonnumre må ikke knække over flere linjer i tabellerne på mobilen. */
+td a[href^="tel:"] {
+  white-space: nowrap;
 }

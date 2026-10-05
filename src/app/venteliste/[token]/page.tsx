@@ -26,12 +26,13 @@ export default async function WaitlistPage({ params, searchParams }: Props) {
   const slots = waiting ? await matchingSlots(db, entry, salon, service, now) : [];
   const booking = entry.bookingId ? await db.query.bookings.findFirst({ where: (b, { eq }) => eq(b.id, entry.bookingId!) }) : undefined;
   const message = str(q.besked);
+  const justJoined = !!str(q.ny) && waiting;
 
   return (
     <main className="page narrow">
       <p className="muted small" style={{ margin: 0 }}>{salon.name}</p>
       <h1>
-        {waiting && (slots.length > 0 ? "Der er en ledig tid" : "Du står på ventelisten")}
+        {waiting && (slots.length > 0 && !justJoined ? "Der er en ledig tid" : "Du står på ventelisten")}
         {entry.status === "waiting" && passed && "Dagen er gået"}
         {entry.status === "booked" && "Du fik en tid"}
         {entry.status === "cancelled" && "Du er afmeldt ventelisten"}
@@ -39,7 +40,10 @@ export default async function WaitlistPage({ params, searchParams }: Props) {
 
       {message === "afmeldt" && <div className="alert ok">Du er afmeldt. Du får ikke flere beskeder om denne dag.</div>}
       {message && message !== "afmeldt" && <div className="alert">{message}</div>}
-      {str(q.ny) && waiting && <div className="alert ok">Du får en SMS, hvis en tid bliver ledig.</div>}
+      {justJoined && <div className="alert ok">Du får en SMS, hvis en tid bliver ledig.</div>}
+      {justJoined && slots.length > 0 && (
+        <p className="small">Der er faktisk ledige tider i dit tidsrum lige nu. Du kan booke en af dem med det samme herunder.</p>
+      )}
 
       <div className="card" style={{ marginTop: 16 }}>
         <dl className="summary">
