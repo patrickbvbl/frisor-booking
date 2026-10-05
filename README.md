@@ -1,14 +1,72 @@
 # frisor-booking
 
-Et bookingsystem til frisører. Kunder kan finde en ledig tid og booke online, og saloner kan styre kalender, medarbejdere og ydelser ét sted.
+Et bookingsystem til frisører. Kunder finder en ledig tid og booker på under et minut uden app eller login, og salonen styrer kalender, medarbejdere og ydelser ét sted.
 
 ## Status
 
-Projektet er i opstartsfasen. Første skridt er research af eksisterende bookingsystemer, så vi kan finde ud af, hvad vi kan gøre bedre.
+Første version (MVP) er bygget. Den dækker de fire ting, vi valgte at starte med ud fra researchen:
 
-## Mål
+| Funktion | Hvor | Status |
+|---|---|---|
+| Online booking for kunder | `/book/demo` | Virker. Ydelse, frisør (eller "første ledige"), dato og tid, navn og mobilnummer |
+| Kalender for medarbejdere | `/admin` | Virker. Dagsvisning med en kolonne pr. frisør, markér gennemført, udeblevet eller aflys |
+| SMS-bekræftelse og påmindelse | `/admin/sms` | Logikken virker. Sendes ikke rigtigt endnu (stub), beskederne kan ses i SMS-loggen |
+| Depositum via MobilePay | `/pay/mock/...` | Logikken virker. Betaling er en testside (stub), indtil vi har MobilePay-nøgler |
 
-- Nem online booking for kunder, også på mobil
-- Overblik over kalender, medarbejdere og ydelser for saloner
-- Påmindelser, så færre udebliver
-- Enklere og billigere end de systemer, der findes i dag
+Derudover: ydelser og arbejdstider kan redigeres under `/admin/indstillinger`, og kundelisten kan hentes som CSV under `/admin/kunder` ("dine kunder er dine").
+
+## Kom i gang
+
+Kræver Node 22. Der skal ikke installeres en database, lokalt bruges [PGlite](https://pglite.dev) (Postgres i WebAssembly), som gemmer data i `.data/pglite`.
+
+```bash
+npm install
+npm run db:seed   # opretter demosalonen "Salon Saks" med tre frisører og fem ydelser
+npm run dev       # http://localhost:3000
+```
+
+Admin-kodeordet er `demo` i udvikling. Stop `npm run dev`, før du kører `db:seed` eller `reminders`, da PGlite kun tillader én proces ad gangen.
+
+```bash
+npm test          # tests af ledige tider, tidszoner, depositum, aflysning og påmindelser
+npm run typecheck
+npm run build
+```
+
+## Teknologivalg
+
+| Valg | Hvorfor |
+|---|---|
+| **Next.js 16 (App Router) og TypeScript** | Én kodebase til både kundens bookingside og salonens kalender. Siderne er server-renderet og virker uden JavaScript, så bookingsiden er hurtig på en gammel mobil |
+| **Postgres med Drizzle ORM** | Rigtig database fra dag ét med transaktioner og låse, så to kunder ikke kan få samme tid. Lokalt PGlite, i produktion en hostet Postgres (fx Neon eller Supabase) via `DATABASE_URL` |
+| **Server actions og almindelige formularer** | Ingen separat API at vedligeholde. Hvert trin i bookingen er en URL, som kan deles og linkes til fra Instagram eller Google |
+| **Udbydere bag et interface** | `src/lib/sms.ts` og `src/lib/payments.ts`. Mock nu, rigtig udbyder senere uden at røre bookinglogikken |
+| **Vercel** som foreslået hosting | Gratis at starte, og `vercel.json` kører påmindelser hver time |
+
+## Sådan virker det
+
+**Ledige tider** (`src/lib/availability.ts`) regnes ud fra medarbejderens arbejdstid den ugedag, minus eksisterende bookinger, i kvarters intervaller og tidligst en time frem. Alt gemmes i UTC og vises i salonens tidszone, også henover skift til og fra sommertid.
+
+**Dobbeltbooking** forhindres ved at låse medarbejderen i en transaktion og tjekke tiden igen, lige før bookingen gemmes.
+
+**Depositum** (`src/lib/booking.ts`):
+
+1. Har ydelsen et depositum, holdes tiden i 15 minutter, mens kunden betaler med MobilePay.
+2. Når MobilePay melder at beløbet er reserveret, bekræftes tiden og kunden får en SMS.
+3. Kommer betalingen for sent, og tiden er givet væk, frigives beløbet automatisk.
+4. Aflyser kunden mindst 24 timer før (kan ændres pr. salon), frigives depositum. Senere end det beholder salonen det.
+5. Udebliver kunden, trækkes depositum. Aflyser salonen, får kunden det altid tilbage.
+
+**Påmindelser** sendes 24 timer før til bekræftede tider, der er booket mere end et døgn i forvejen. `GET /api/cron/reminders` med `Authorization: Bearer $CRON_SECRET` kører dem, og det kan kaldes så ofte man vil uden dobbelte SMS'er. Bemærk at Vercels gratis plan kun kører cron én gang i døgnet.
+
+## Det mangler før rigtige kunder
+
+- **Rigtig SMS-udbyder.** Implementér `SmsProvider` i `src/lib/sms.ts`, fx med GatewayAPI (dansk og billig), og sæt `SMS_PROVIDER`.
+- **Rigtig MobilePay.** Implementér `PaymentProvider` i `src/lib/payments.ts` mod Vipps MobilePay ePayment API, og tilføj en webhook-route der kalder `handlePaymentEvent`. Kræver en MobilePay-aftale og nøgler.
+- **Flere saloner og logins pr. medarbejder.** Datamodellen har allerede `salon_id` overalt, men admin styrer i dag én salon (`SALON_SLUG`) med ét fælles kodeord.
+- **Booking fra salonens side**, fx når en kunde ringer. Indtil da kan personalet bruge bookingsiden.
+- Fra researchen, næste runde: venteliste der fylder huller via SMS, farve med virketid, genbooking efter fast interval og import fra Planway og Fresha.
+
+## Miljøvariabler
+
+Se `.env.example`. I produktion skal `DATABASE_URL`, `ADMIN_PASSWORD`, `APP_URL` og `CRON_SECRET` sættes.
