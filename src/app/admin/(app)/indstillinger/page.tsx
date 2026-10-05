@@ -16,6 +16,7 @@ import {
   moveServiceUpAction,
   saveCategoryAction,
 } from "./actions";
+import { PhotoPicker } from "./photo-picker";
 
 const WEEKDAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
 
@@ -221,6 +222,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               {m ? "Navn" : "Ny medarbejder"}
               <input name="name" defaultValue={m?.name ?? ""} required placeholder={m ? undefined : "Navn"} />
             </label>
+            <PhotoPicker key={m?.photoId ?? 0} name={m?.name ?? ""} photoId={m?.photoId ?? null} />
             <div className="hours small">
               {WEEKDAYS.map((label, i) => {
                 const h = m ? hours.find((x) => x.staffId === m.id && x.weekday === i + 1) : undefined;

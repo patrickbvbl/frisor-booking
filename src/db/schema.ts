@@ -36,6 +36,8 @@ export const staff = pgTable("staff", {
   salonId: integer("salon_id").notNull().references(() => salons.id),
   name: text("name").notNull(),
   active: boolean("active").notNull().default(true),
+  // Billede kunderne ser, når de vælger frisør. Uden billede vises forbogstavet.
+  photoId: integer("photo_id").references(() => salonImages.id, { onDelete: "set null" }),
 });
 
 // Faste arbejdstider pr. ugedag. weekday: 1 = mandag ... 7 = søndag. Minutter efter midnat i salonens tidszone.
