@@ -19,6 +19,8 @@ Anden runde fra researchen:
 |---|---|---|
 | Automatisk venteliste | Bookingsiden og `/admin/venteliste` | Virker. Kunden skriver sig på en fuld dag. Ved afbud får de første tre i køen en SMS, og den første der trykker, får tiden |
 | Import af kunder fra Planway, Fresha eller regneark | `/admin/kunder/import` | Virker med CSV. Kolonnerne genkendes automatisk, og der vises en oversigt før noget gemmes |
+| Farve med virketid | `/admin/indstillinger` og kalenderen | Virker. Mens farven sidder, kan frisøren tage en anden kunde, og kalenderen viser virketiden |
+| Genbooking efter kundens rytme | `/admin/kunder` og SMS | Virker. Kunder der har sagt ja, får en SMS, når det er tid til næste besøg |
 
 Derudover: ydelser og arbejdstider kan redigeres under `/admin/indstillinger`, og kundelisten kan hentes som CSV under `/admin/kunder` ("dine kunder er dine").
 
@@ -82,6 +84,10 @@ Bookingsiden ligger derefter på `https://<projekt>.vercel.app/book/demo` og kal
 
 **Import af kunder** (`src/lib/import.ts`): læser CSV med komma, semikolon eller tabulator, også Excels Windows-tegnsæt. Kolonner som Navn, Fornavn og Efternavn, Mobil, Telefon, E-mail og Note genkendes på dansk og engelsk. Findes en kunde allerede (samme telefonnummer), beholdes navnet, og kun manglende e-mail og note udfyldes, så samme fil kan importeres flere gange. Excel-filer (.xlsx) skal gemmes som CSV først. Vi har ikke set en rigtig eksportfil fra Planway eller Fresha endnu, så kolonnenavnene bør tjekkes mod en rigtig fil.
 
+**Farve med virketid** (`src/lib/availability.ts`): en ydelse kan have en virketid, fx "Farve og klip" på 120 minutter, hvor farven påføres i 30 minutter og virker i 45. I virketiden regnes frisøren som ledig, så bookingsiden tilbyder tider til ydelser, der kan nå at blive færdige inden. Virketiden gemmes på selve bookingen, så senere ændringer på ydelsen ikke flytter eksisterende tider.
+
+**Genbooking** (`src/lib/rebooking.ts`): kundens rytme er medianen af afstanden mellem gennemførte besøg. Har kunden kun ét besøg, bruges ydelsens interval i uger. Når det er tid, og kunden ikke allerede har en tid, sendes én SMS med et link til sidste booking, hvor kunden kan booke igen eller sige nej tak til flere. Der sendes kun til kunder, der har krydset af på bookingsiden, fordi SMS-markedsføring kræver samtykke. Importerede kunder får derfor ingen SMS, før de selv har sagt ja. Kører sammen med påmindelserne hver morgen og springer kunder over, der er mere end 30 dage over tiden.
+
 **Påmindelser** sendes 24 timer før til bekræftede tider, der er booket mere end et døgn i forvejen. `GET /api/cron/reminders` med `Authorization: Bearer $CRON_SECRET` kører dem, og det kan kaldes så ofte man vil uden dobbelte SMS'er. `vercel.json` kører dem én gang i døgnet kl. 7 UTC, da Vercels gratis plan ikke tillader oftere. Med Pro kan tidsplanen sættes til hver time (`0 * * * *`).
 
 ## Det mangler før rigtige kunder
@@ -90,7 +96,7 @@ Bookingsiden ligger derefter på `https://<projekt>.vercel.app/book/demo` og kal
 - **Rigtig MobilePay.** Implementér `PaymentProvider` i `src/lib/payments.ts` mod Vipps MobilePay ePayment API, og tilføj en webhook-route der kalder `handlePaymentEvent`. Kræver en MobilePay-aftale og nøgler.
 - **Flere saloner og logins pr. medarbejder.** Datamodellen har allerede `salon_id` overalt, men admin styrer i dag én salon (`SALON_SLUG`) med ét fælles kodeord.
 - **Booking fra salonens side**, fx når en kunde ringer. Indtil da kan personalet bruge bookingsiden.
-- Fra researchen, næste runde: farve med virketid og genbooking efter fast interval. Import af ydelser og fremtidige bookinger fra Planway og Fresha.
+- Fra researchen, næste runde: import af ydelser og fremtidige bookinger fra Planway og Fresha, og afbudsregler pr. ydelse.
 
 ## Miljøvariabler
 

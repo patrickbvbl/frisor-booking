@@ -4,7 +4,7 @@ import { customerCanCancelFree, getBookingDetails } from "@/lib/booking";
 import { clock, displayPhone, kr, longDate } from "@/lib/format";
 import { appDb, str } from "@/lib/server";
 import { toZoned } from "@/lib/time";
-import { cancelAction } from "./actions";
+import { cancelAction, rebookOptOutAction } from "./actions";
 
 type Props = {
   params: Promise<{ token: string }>;
@@ -19,7 +19,7 @@ export default async function BookingPage({ params, searchParams }: Props) {
   const db = await appDb();
   const d = await getBookingDetails(db, { token });
   if (!d) notFound();
-  const { booking, salon, service, staff, payment } = d;
+  const { booking, salon, service, staff, payment, customer } = d;
   const tz = salon.timezone;
   const now = new Date();
   const message = str(q.besked);
@@ -40,7 +40,7 @@ export default async function BookingPage({ params, searchParams }: Props) {
       </h1>
 
       {message === "aflyst" && <div className="alert ok">Din tid er aflyst. Du får en SMS som bekræftelse.</div>}
-      {message && message !== "aflyst" && <div className="alert">{message}</div>}
+      {message && message !== "aflyst" && message !== "stop" && <div className="alert">{message}</div>}
       {str(q.ny) && booking.status === "confirmed" && <div className="alert ok">Du får en SMS med bekræftelsen om lidt.</div>}
 
       <div className="card" style={{ marginTop: 16 }}>
@@ -79,6 +79,21 @@ export default async function BookingPage({ params, searchParams }: Props) {
         <p>
           <a className="button mp full" href={payment.redirectUrl}>Betal depositum med MobilePay</a>
         </p>
+      )}
+
+      {booking.status === "completed" && (
+        <div className="stack" style={{ marginTop: 16 }}>
+          <Link className="button full" href={`/book/${salon.slug}?ydelse=${service.id}&frisor=${staff.id}`}>
+            Book {service.name.toLowerCase()} hos {staff.name} igen
+          </Link>
+          {message === "stop" && <div className="alert ok">Du får ikke flere SMS&apos;er om ny tid.</div>}
+          {customer.rebookOptIn && (
+            <form action={rebookOptOutAction}>
+              <input type="hidden" name="token" value={booking.token} />
+              <button className="secondary full small" type="submit">Jeg vil ikke have SMS om ny tid</button>
+            </form>
+          )}
+        </div>
       )}
 
       {(booking.status === "expired" || (booking.status === "pending_payment" && !holdActive)) && (

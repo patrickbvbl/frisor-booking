@@ -25,7 +25,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       <h2>Ydelser</h2>
       <p className="muted small">
-        Sæt et depositum på ydelser hvor en udeblivelse koster meget, fx farve. Kunden betaler det med MobilePay, når de booker.
+        Sæt et depositum på ydelser hvor en udeblivelse koster meget, fx farve. Kunden betaler det med MobilePay, når de booker. Virketid
+        er tiden hvor fx farven sidder, og frisøren kan tage en anden kunde imens. Skriv hvor mange minutter der går, før den starter,
+        og hvor længe den varer. Genbooking er hvor mange uger der typisk går, før kunden skal komme igen.
       </p>
       <div className="stack">
         {services.map((s) => (
@@ -46,6 +48,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <label>
               Depositum (kr.)
               <input name="deposit" inputMode="decimal" defaultValue={kroner(s.depositOre)} />
+            </label>
+            <label title="Minutter frisøren arbejder, før virketiden starter, fx påføring af farve">
+              Virketid efter (min)
+              <input name="processingAfterMin" type="number" min={0} step={5} defaultValue={s.processingAfterMin || ""} placeholder="0" />
+            </label>
+            <label title="Minutter hvor farven virker, og frisøren kan tage en anden kunde">
+              Virketid (min)
+              <input name="processingMin" type="number" min={0} step={5} defaultValue={s.processingMin || ""} placeholder="0" />
+            </label>
+            <label title="Typisk antal uger til næste besøg. Bruges til genbooking, indtil kunden har sin egen rytme">
+              Genbooking (uger)
+              <input name="rebookWeeks" type="number" min={1} max={26} defaultValue={s.rebookWeeks ?? ""} placeholder="ingen" />
             </label>
             <label className="row" style={{ alignSelf: "center" }}>
               <input name="active" type="checkbox" defaultChecked={s.active} /> Kan bookes

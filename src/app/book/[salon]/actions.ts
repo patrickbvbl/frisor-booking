@@ -23,6 +23,7 @@ export async function bookAction(formData: FormData) {
         phone: str(formData.get("phone")),
         email: str(formData.get("email")),
         note: str(formData.get("note")),
+        rebookOptIn: formData.get("rebookOptIn") === "on",
       },
       defaultDeps(),
     );

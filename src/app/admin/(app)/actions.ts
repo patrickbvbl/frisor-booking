@@ -43,6 +43,11 @@ function kroner(v: FormDataEntryValue | null): number {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : 0;
 }
 
+function minutes(v: FormDataEntryValue | null): number {
+  const n = Math.round(Number(str(v)) / 5) * 5;
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export async function saveServiceAction(formData: FormData) {
   const { db, salon } = await requireAdmin();
   const id = Number(str(formData.get("id")));
@@ -51,9 +56,18 @@ export async function saveServiceAction(formData: FormData) {
     durationMin: Math.max(5, Math.round(Number(str(formData.get("durationMin"))) / 5) * 5 || 30),
     priceOre: kroner(formData.get("price")),
     depositOre: kroner(formData.get("deposit")),
+    processingAfterMin: minutes(formData.get("processingAfterMin")),
+    processingMin: minutes(formData.get("processingMin")),
+    rebookWeeks: Math.round(Number(str(formData.get("rebookWeeks")))) || null,
     active: formData.get("active") === "on",
   };
   if (!values.name) redirect("/admin/indstillinger?fejl=Ydelsen skal have et navn.");
+  if (values.processingMin > 0 && (values.processingAfterMin <= 0 || values.processingAfterMin + values.processingMin >= values.durationMin)) {
+    redirect(
+      `/admin/indstillinger?fejl=${encodeURIComponent(`Virketiden for ${values.name} skal starte efter mindst 5 minutter og slutte før ydelsen er færdig.`)}`,
+    );
+  }
+  if (values.processingMin <= 0) values.processingAfterMin = 0;
   if (id) await db.update(services).set(values).where(and(eq(services.id, id), eq(services.salonId, salon.id)));
   else await db.insert(services).values({ ...values, active: true, salonId: salon.id });
   redirect("/admin/indstillinger");
