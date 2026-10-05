@@ -4,7 +4,10 @@ import { requireAdmin } from "@/lib/auth";
 import { clock } from "@/lib/format";
 import { toZoned } from "@/lib/time";
 
-const KIND: Record<string, string> = { confirmation: "Bekræftelse", reminder: "Påmindelse", cancellation: "Aflysning" };
+const KIND: Record<string, string> = { confirmation: "Bekræftelse", reminder: "Påmindelse", cancellation: "Aflysning",
+  waitlist: "Venteliste",
+  waitlist_offer: "Ledig tid",
+};
 
 export default async function SmsPage() {
   const { db, salon } = await requireAdmin();

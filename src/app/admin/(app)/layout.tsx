@@ -14,6 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <nav>
             <Link href="/admin">Kalender</Link>
             <Link href="/admin/indstillinger">Ydelser og medarbejdere</Link>
+            <Link href="/admin/venteliste">Venteliste</Link>
             <Link href="/admin/kunder">Kunder</Link>
             <Link href="/admin/sms">SMS</Link>
             <Link href={`/book/${salon.slug}`} target="_blank">Bookingside</Link>

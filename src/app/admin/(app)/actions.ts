@@ -7,7 +7,8 @@ import { bookings, services, staff, workingHours } from "@/db/schema";
 import { endSession, requireAdmin } from "@/lib/auth";
 import { BookingError, cancelBooking, defaultDeps, setOutcome } from "@/lib/booking";
 import { str } from "@/lib/server";
-import { hhmmToMinutes } from "@/lib/time";
+import { hhmmToMinutes, isIsoDate } from "@/lib/time";
+import { leaveWaitlist, offerFreedTime } from "@/lib/waitlist";
 
 export async function logoutAction() {
   await endSession();
@@ -94,4 +95,20 @@ export async function saveStaffAction(formData: FormData) {
     if (hours.length) await tx.insert(workingHours).values(hours.map((h) => ({ ...h, staffId })));
   });
   redirect("/admin/indstillinger");
+}
+
+export async function removeWaitlistAction(formData: FormData) {
+  const { db, salon } = await requireAdmin();
+  await leaveWaitlist(db, { id: Number(str(formData.get("id"))), salonId: salon.id });
+  revalidatePath("/admin/venteliste");
+  redirect("/admin/venteliste");
+}
+
+/** Sender ledige tider til de første i køen, fx efter salonen har givet en frisør ekstra timer. */
+export async function offerWaitlistAction(formData: FormData) {
+  const { db, salon } = await requireAdmin();
+  const date = str(formData.get("date"));
+  if (!isIsoDate(date)) redirect("/admin/venteliste");
+  const sent = await offerFreedTime(db, salon.id, date, defaultDeps());
+  redirect(`/admin/venteliste?sendt=${sent}`);
 }
