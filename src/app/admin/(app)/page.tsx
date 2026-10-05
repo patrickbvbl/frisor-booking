@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { getBookingDetails, getDayCalendar, getWeekCalendar } from "@/lib/booking";
 import { lastVisitNote } from "@/lib/customers";
-import { capitalize, clock, displayPhone, kr, longDate, shortDate } from "@/lib/format";
+import { capitalize, clock, displayPhone, kr, longDate } from "@/lib/format";
 import { str } from "@/lib/server";
 import { addDays, isIsoDate, toZoned, weekdayOf } from "@/lib/time";
 import { bookingAction } from "./actions";
@@ -43,18 +43,18 @@ export default async function CalendarPage({ searchParams }: Props) {
   const revenue = active.filter((b) => b.booking.status !== "no_show").reduce((sum, b) => sum + b.booking.priceOre, 0);
   const step = week ? 7 : 1;
   const sunday = addDays(monday, 6);
-  const title = week
-    ? `Uge ${isoWeek(monday)}, ${shortDate(monday)} til ${shortDate(sunday)}`
-    : capitalize(longDate(date));
+  const title = week ? `Uge ${isoWeek(monday)}` : capitalize(longDate(date));
 
   return (
     <main className="page">
       <div className="spread">
         <div>
-          <h1>{title}</h1>
+          <h1 style={{ marginBottom: 2 }}>{title}</h1>
           <p className="muted small" style={{ margin: 0 }}>
-            {week && member ? `${member.name}: ` : ""}
-            {active.length} {active.length === 1 ? "booking" : "bookinger"}, {kr(revenue)} i forventet omsætning
+            {week ? `${dayMonth(monday, sunday)} · ` : ""}
+            {active.length === 0
+              ? "Ingen bookinger"
+              : `${active.length} ${active.length === 1 ? "booking" : "bookinger"} til ${kr(revenue)}`}
           </p>
         </div>
         <Link className="button small" href={`/admin/ny?dato=${date}${week && member ? `&medarbejder=${member.id}` : ""}&retur=${encodeURIComponent(base)}`}>
@@ -62,32 +62,38 @@ export default async function CalendarPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <div className="spread" style={{ marginTop: 12 }}>
-        <div className="row">
-          <div className="segmented" role="group" aria-label="Visning">
-            <Link href={viewHref(date, "dag")} className={week ? undefined : "active"} aria-current={week ? undefined : "page"}>Dag</Link>
-            <Link href={viewHref(date, "uge")} className={week ? "active" : undefined} aria-current={week ? "page" : undefined}>Uge</Link>
-          </div>
-          <Link className="button secondary small" href={viewHref(addDays(date, -step))} aria-label={week ? "Forrige uge" : "Forrige dag"}>&larr;</Link>
-          <Link className="button secondary small" href={viewHref(today)}>I dag</Link>
-          <Link className="button secondary small" href={viewHref(addDays(date, step))} aria-label={week ? "Næste uge" : "Næste dag"}>&rarr;</Link>
+      <div className="cal-toolbar">
+        <div className="cal-nav" role="group" aria-label={week ? "Skift uge" : "Skift dag"}>
+          <Link href={viewHref(addDays(date, -step))} aria-label={week ? "Forrige uge" : "Forrige dag"}>&lsaquo;</Link>
+          <Link href={viewHref(today)}>I dag</Link>
+          <Link href={viewHref(addDays(date, step))} aria-label={week ? "Næste uge" : "Næste dag"}>&rsaquo;</Link>
         </div>
-        <form className="row" action="/admin">
+        <form className="cal-jump" action="/admin">
           {week && <input type="hidden" name="visning" value="uge" />}
           {week && member && <input type="hidden" name="medarbejder" value={member.id} />}
-          <input key={date} type="date" name="dato" defaultValue={date} style={{ width: "auto", minHeight: 32, padding: "3px 8px" }} />
+          <input key={date} type="date" name="dato" defaultValue={date} aria-label="Vælg dato" />
           <button className="secondary small" type="submit">Gå til</button>
         </form>
+        <div className="segmented" role="group" aria-label="Visning">
+          <Link href={viewHref(date, "dag")} className={week ? undefined : "active"} aria-current={week ? undefined : "page"}>Dag</Link>
+          <Link href={viewHref(date, "uge")} className={week ? "active" : undefined} aria-current={week ? "page" : undefined}>Uge</Link>
+        </div>
       </div>
 
       {week && cal.staff.length > 1 && (
-        <div className="chips" style={{ marginTop: 12 }} role="group" aria-label="Frisør">
+        <nav className="staff-tabs" aria-label="Vælg frisør">
+          <span className="muted small">Frisør</span>
           {cal.staff.map((s) => (
-            <Link key={s.id} href={viewHref(date, "uge", s.id)} className={`chip ${s.id === member?.id ? "selected" : ""}`}>
+            <Link
+              key={s.id}
+              href={viewHref(date, "uge", s.id)}
+              className={s.id === member?.id ? "active" : undefined}
+              aria-current={s.id === member?.id ? "page" : undefined}
+            >
               {s.name}
             </Link>
           ))}
-        </div>
+        </nav>
       )}
 
       {error && <div className="alert">{error}</div>}
@@ -106,8 +112,9 @@ export default async function CalendarPage({ searchParams }: Props) {
               <div className="cal-head" />
               {week
                 ? days.map((d) => (
-                    <Link key={d} href={viewHref(d, "dag")} className={`cal-head ${d === today ? "today" : ""}`}>
-                      {capitalize(shortDate(d))}
+                    <Link key={d} href={viewHref(d, "dag")} className={`cal-head cal-day ${d === today ? "today" : ""}`} title="Se dagen for alle frisører">
+                      <span className="muted small">{WEEKDAY_SHORT[weekdayOf(d) - 1]}</span>
+                      <span className="cal-daynum">{Number(d.slice(8))}</span>
                     </Link>
                   ))
                 : cal.staff.map((s) => (
@@ -243,11 +250,20 @@ export default async function CalendarPage({ searchParams }: Props) {
       </div>
       {cal.staff.length > 0 && (
         <p className="muted small" style={{ marginTop: 8 }}>
-          Tryk på et tomt felt i kalenderen for at booke en kunde, der ringer eller kommer ind fra gaden.
+          Tryk på et tomt felt for at booke en tid.
         </p>
       )}
     </main>
   );
+}
+
+const WEEKDAY_SHORT = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"];
+
+/** "12. til 18. oktober" eller "28. september til 4. oktober". */
+function dayMonth(first: string, last: string): string {
+  const fmt = (d: string, month: boolean) =>
+    new Date(`${d}T12:00:00Z`).toLocaleDateString("da-DK", { timeZone: "UTC", day: "numeric", ...(month ? { month: "long" } : {}) });
+  return `${fmt(first, first.slice(5, 7) !== last.slice(5, 7))} til ${fmt(last, true)}`;
 }
 
 /** Ugenummer efter ISO 8601, som bruges i Danmark. */
