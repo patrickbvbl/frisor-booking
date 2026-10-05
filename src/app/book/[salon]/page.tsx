@@ -8,8 +8,8 @@ import { PERIODS } from "@/lib/waitlist";
 import { inArray } from "drizzle-orm";
 import { workingHours } from "@/db/schema";
 import { listCategories } from "@/lib/categories";
-import { groupServices, openingHours, parseDesign, themeVars, type Theme } from "@/lib/design";
-import { fontFamily } from "@/lib/fonts";
+import { groupServices, openingHours, parseDesign } from "@/lib/design";
+import { SalonTheme } from "../salon-theme";
 import { bookAction, joinWaitlistAction } from "./actions";
 import { CompactHeader, SalonBlocks } from "./blocks";
 
@@ -19,6 +19,11 @@ type Props = {
 };
 
 const DAYS_AHEAD = 21;
+const DAYPARTS: [string, number, number][] = [
+  ["Formiddag", 0, 12],
+  ["Eftermiddag", 12, 17],
+  ["Aften", 17, 24],
+];
 
 export async function generateMetadata({ params }: Props) {
   const db = await appDb();
@@ -210,20 +215,6 @@ export default async function BookPage({ params, searchParams }: Props) {
   );
 }
 
-/** Salonens farver og skrift. Gælder kun bookingsiden, ikke admin. */
-function SalonTheme({ theme, children }: { theme: Theme; children: React.ReactNode }) {
-  const style = {
-    ...themeVars(theme),
-    "--font-heading": fontFamily(theme.headingFont),
-    "--font-body": fontFamily(theme.bodyFont),
-  } as React.CSSProperties;
-  return (
-    <div className="salon-page" style={style}>
-      {children}
-    </div>
-  );
-}
-
 async function TimePicker(props: {
   db: Awaited<ReturnType<typeof appDb>>;
   salon: NonNullable<Awaited<ReturnType<typeof getSalonBySlug>>>;
@@ -279,12 +270,27 @@ async function TimePicker(props: {
           )}
         </div>
       ) : (
-        <div className="slots">
-          {slots.map((s) => (
-            <Link key={s.start.toISOString()} href={href({ dato: date, tid: s.start.toISOString() })}>
-              {clock(s.start, salon.timezone)}
-            </Link>
-          ))}
+        // Som en tidtabel: tiderne delt op efter tid på dagen, med store tal der står lige under hinanden.
+        <div className="timetable">
+          {DAYPARTS.map(([label, from, to]) => {
+            const part = slots.filter((s) => {
+              const hour = Number(clock(s.start, salon.timezone).slice(0, 2));
+              return hour >= from && hour < to;
+            });
+            if (part.length === 0) return null;
+            return (
+              <div key={label} className="timetable-part">
+                <h3 className="label">{label}</h3>
+                <div className="slots">
+                  {part.map((s) => (
+                    <Link key={s.start.toISOString()} href={href({ dato: date, tid: s.start.toISOString() })}>
+                      {clock(s.start, salon.timezone)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -7,7 +7,9 @@ import { z } from "zod";
  */
 
 export const FONTS = {
-  system: "Standard",
+  youngserif: "Skilt (Young Serif)",
+  atkinson: "Letlæst (Atkinson Hyperlegible)",
+  system: "Systemets egen",
   inter: "Moderne (Inter)",
   nunito: "Rund (Nunito)",
   playfair: "Klassisk (Playfair Display)",
@@ -79,15 +81,15 @@ export type Design = { theme: Theme; blocks: Block[] };
 
 export const DEFAULT_THEME: Theme = {
   accent: "#1f5f4a",
-  background: "#faf8f5",
-  headingFont: "system",
-  bodyFont: "system",
-  corners: "round",
+  background: "#f4efe6",
+  headingFont: "youngserif",
+  bodyFont: "atkinson",
+  corners: "soft",
 };
 
 /** Færdige farvesæt, så salonen ikke behøver at vælge farver selv. */
 export const PALETTES: { name: string; accent: string; background: string }[] = [
-  { name: "Grøn", accent: "#1f5f4a", background: "#faf8f5" },
+  { name: "Grøn på papir", accent: "#1f5f4a", background: "#f4efe6" },
   { name: "Sort og hvid", accent: "#111111", background: "#ffffff" },
   { name: "Rosa", accent: "#b03a64", background: "#fdf4f6" },
   { name: "Blå", accent: "#1d4ed8", background: "#f5f8ff" },
@@ -213,7 +215,7 @@ export function isDark(hex: string) {
   return luminance(hex) < 0.2;
 }
 
-const RADII: Record<Corners, string> = { round: "16px", soft: "10px", square: "2px" };
+const RADII: Record<Corners, string> = { round: "16px", soft: "6px", square: "2px" };
 
 /**
  * CSS-variabler til bookingsiden ud fra salonens to farver. Resten afledes, så tekst altid er til at læse:
@@ -235,7 +237,8 @@ export function themeVars(theme: Theme): Record<string, string> {
     "--accent-soft": mix(14, accent, theme.background),
     "--accent-text": contrast("#ffffff", accent) >= contrast("#111111", accent) ? "#ffffff" : "#111111",
     "--radius": RADII[theme.corners],
-    "--shadow": dark ? "none" : "0 1px 2px rgb(0 0 0 / 0.05), 0 2px 8px rgb(0 0 0 / 0.04)",
+    // Tynde linjer i stedet for skygger. Bløde skygger på alt er et af de tydeligste tegn på skabelon-design.
+    "--shadow": "none",
     colorScheme: dark ? "dark" : "light",
   };
 }
