@@ -36,7 +36,7 @@ describe("design af bookingsiden", () => {
     });
     expect(d.blocks.map((b) => b.type)).toEqual(["text", "services"]);
     expect(d.blocks[1].hidden).toBe(false);
-    expect(d.theme.accent).toBe("#1f5f4a");
+    expect(d.theme.accent).toBe("#1e1b18");
     expect(d.theme.background).toBe("#000000");
   });
 
