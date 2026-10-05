@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { listCustomers } from "@/lib/customers";
 import { displayPhone } from "@/lib/format";
@@ -15,7 +16,10 @@ export default async function CustomersPage() {
             {rows.length} kunder. Dine kunder er dine: du kan altid hente hele listen.
           </p>
         </div>
-        <a className="button secondary small" href="/admin/kunder/eksport">Hent som CSV</a>
+        <div className="row">
+          <Link className="button secondary small" href="/admin/kunder/import">Importér</Link>
+          <a className="button secondary small" href="/admin/kunder/eksport">Hent som CSV</a>
+        </div>
       </div>
       <div className="card table-scroll" style={{ marginTop: 16 }}>
         <table>
@@ -27,6 +31,7 @@ export default async function CustomersPage() {
               <th>Besøg</th>
               <th>Udeblevet</th>
               <th>Seneste tid</th>
+              <th>Note</th>
             </tr>
           </thead>
           <tbody>
@@ -40,11 +45,12 @@ export default async function CustomersPage() {
                 <td>{c.visits}</td>
                 <td>{c.noShows > 0 ? <span className="badge danger">{c.noShows}</span> : 0}</td>
                 <td>{c.lastVisit ? toZoned(c.lastVisit, salon.timezone).date : ""}</td>
+                <td className="small">{c.note}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="muted">Ingen kunder endnu. De kommer her, når de booker.</td>
+                <td colSpan={7} className="muted">Ingen kunder endnu. De kommer her, når de booker, eller du kan importere dem fra dit gamle system.</td>
               </tr>
             )}
           </tbody>

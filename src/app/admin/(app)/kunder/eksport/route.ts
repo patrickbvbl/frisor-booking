@@ -10,8 +10,8 @@ export async function GET() {
   if (!salon) return new Response("Not found", { status: 404 });
   const rows = await listCustomers(db, salon.id);
   const csv = toCsv([
-    ["Navn", "Telefon", "E-mail", "Oprettet", "Besøg", "Udeblevet"],
-    ...rows.map((c) => [c.name, c.phone, c.email, c.createdAt.toISOString().slice(0, 10), c.visits, c.noShows]),
+    ["Navn", "Telefon", "E-mail", "Oprettet", "Besøg", "Udeblevet", "Note"],
+    ...rows.map((c) => [c.name, c.phone, c.email, c.createdAt.toISOString().slice(0, 10), c.visits, c.noShows, c.note]),
   ]);
   return new Response(csv, {
     headers: {

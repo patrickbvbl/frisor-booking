@@ -10,6 +10,7 @@ export async function listCustomers(db: Db, salonId: number) {
       name: customers.name,
       phone: customers.phone,
       email: customers.email,
+      note: customers.note,
       createdAt: customers.createdAt,
       visits: sql<number>`count(*) filter (where ${bookings.status} = 'completed')`.mapWith(Number),
       noShows: sql<number>`count(*) filter (where ${bookings.status} = 'no_show')`.mapWith(Number),
