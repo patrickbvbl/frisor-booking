@@ -36,6 +36,7 @@ Salonens eget design:
 |---|---|---|
 | Kategorier for ydelser | `/admin/indstillinger` | Virker. Fx Herre, Dame og Børn med egen rækkefølge. Ydelserne kan også sorteres og få en beskrivelse |
 | Blokeditor til bookingsiden | `/admin/design` | Virker. Salonen vælger, sorterer og skjuler blokke (forside med logo og billede, tekst, besked, ydelser, medarbejdere, åbningstider, kontakt) og vælger farver, skrift og hjørner. Forhåndsvisning på en mobil ved siden af |
+| Billeder af medarbejdere | `/admin/indstillinger` og bookingsiden | Virker. Salonen kan lægge et billede op af hver frisør, som kunden ser, når de vælger frisør. Uden billede vises forbogstavet |
 
 Derudover: ydelser og arbejdstider kan redigeres under `/admin/indstillinger`, og kundelisten kan hentes som CSV under `/admin/kunder` ("dine kunder er dine").
 

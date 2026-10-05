@@ -8,6 +8,7 @@ import { endSession, requireAdmin } from "@/lib/auth";
 import { BookingError, cancelBooking, defaultDeps, setOutcome } from "@/lib/booking";
 import { nextServicePosition } from "@/lib/categories";
 import { str } from "@/lib/server";
+import { setStaffPhoto, staffPhotoError } from "@/lib/staff-photos";
 import { hhmmToMinutes, isIsoDate } from "@/lib/time";
 import { leaveWaitlist, offerFreedTime } from "@/lib/waitlist";
 
@@ -131,6 +132,12 @@ export async function saveStaffAction(formData: FormData) {
     hours.push({ weekday: d, startMin, endMin });
   }
 
+  // Billedet tjekkes før noget gemmes, så en forkert fil ikke efterlader halvt gemte ændringer.
+  const file = formData.get("photo");
+  const photo = file instanceof File && file.size > 0 ? Buffer.from(await file.arrayBuffer()) : null;
+  const photoError = photo && staffPhotoError(photo);
+  if (photoError) redirect(`/admin/indstillinger?fejl=${encodeURIComponent(`${name}: ${photoError}`)}#medarbejdere`);
+
   let staffId = id;
   await db.transaction(async (tx) => {
     if (id) {
@@ -147,6 +154,8 @@ export async function saveStaffAction(formData: FormData) {
     await tx.delete(workingHours).where(eq(workingHours.staffId, staffId));
     if (hours.length) await tx.insert(workingHours).values(hours.map((h) => ({ ...h, staffId })));
   });
+  if (photo) await setStaffPhoto(db, salon.id, staffId, photo);
+  else if (id && formData.get("photoRemove") === "on") await setStaffPhoto(db, salon.id, staffId, null);
   savedSettings(`medarbejder-${staffId}`);
 }
 

@@ -12,6 +12,7 @@ import { groupServices, openingHours, parseDesign } from "@/lib/design";
 import { SalonTheme } from "../salon-theme";
 import { bookAction, joinWaitlistAction } from "./actions";
 import { CompactHeader, SalonBlocks } from "./blocks";
+import { StaffAvatar } from "@/app/staff-avatar";
 
 type Props = {
   params: Promise<{ salon: string }>;
@@ -113,7 +114,8 @@ export default async function BookPage({ params, searchParams }: Props) {
                 <span className="muted small">Flest tider at vælge imellem</span>
               </Link>
               {team.map((m) => (
-                <Link key={m.id} className="card link-card" href={href({ frisor: String(m.id) })}>
+                <Link key={m.id} className="card link-card staff-choice" href={href({ frisor: String(m.id) })}>
+                  <StaffAvatar member={m} size="lg" />
                   <strong>{m.name}</strong>
                 </Link>
               ))}
@@ -122,6 +124,7 @@ export default async function BookPage({ params, searchParams }: Props) {
 
           {step >= 3 && (
             <p className="small">
+              {member && <StaffAvatar member={member} size="sm" />}
               Frisør: <strong>{member ? member.name : "Første ledige"}</strong>{" "}
               <Link href={href({ frisor: undefined })}>Skift</Link>
             </p>

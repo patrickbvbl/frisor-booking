@@ -7,6 +7,7 @@ import { groupServices } from "@/lib/design";
 import { str } from "@/lib/server";
 import { minutesToHhmm } from "@/lib/time";
 import { savePolicyAction, saveServiceAction, saveStaffAction } from "../actions";
+import { StaffAvatar } from "@/app/staff-avatar";
 import { MoveButtons } from "../move-buttons";
 import {
   deleteCategoryAction,
@@ -221,6 +222,20 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               {m ? "Navn" : "Ny medarbejder"}
               <input name="name" defaultValue={m?.name ?? ""} required placeholder={m ? undefined : "Navn"} />
             </label>
+            <div className="stack" style={{ gap: 4 }}>
+              <label>
+                Billede (valgfrit)
+                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" />
+              </label>
+              {m?.photoId ? (
+                <label className="row small" style={{ fontWeight: "normal" }}>
+                  <StaffAvatar member={m} size="lg" />
+                  <input type="checkbox" name="photoRemove" /> Fjern billedet
+                </label>
+              ) : (
+                <span className="muted small">Kunderne ser billedet, når de vælger frisør. Uden billede vises forbogstavet.</span>
+              )}
+            </div>
             <div className="hours small">
               {WEEKDAYS.map((label, i) => {
                 const h = m ? hours.find((x) => x.staffId === m.id && x.weekday === i + 1) : undefined;

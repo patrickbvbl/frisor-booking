@@ -1034,6 +1034,29 @@ th {
   font-weight: 700;
 }
 
+img.avatar {
+  object-fit: cover;
+  background: var(--accent-soft);
+}
+
+.avatar-lg {
+  width: 56px;
+  height: 56px;
+  font-size: 1.25rem;
+}
+
+.avatar-sm {
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+.link-card.staff-choice {
+  justify-content: flex-start;
+}
+
 /* Admin: Bookingside */
 
 .design-layout {

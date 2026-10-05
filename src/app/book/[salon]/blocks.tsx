@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Salon, Service, Staff } from "@/db/schema";
 import { displayPhone, kr } from "@/lib/format";
 import { minutesToHhmm } from "@/lib/time";
+import { StaffAvatar } from "@/app/staff-avatar";
 import { imageUrl, type Block, type BlockProps, type CategoryGroup, type OpeningDay } from "@/lib/design";
 
 const WEEKDAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
@@ -153,7 +154,7 @@ function StaffBlock({ props, data }: { props: BlockProps<"staff">; data: PageDat
             className={`card staff-card ${data.memberId === m.id ? "selected" : ""}`}
             href={`${data.href({ frisor: String(m.id) })}#ydelser`}
           >
-            <span className="avatar" aria-hidden>{m.name.slice(0, 1)}</span>
+            <StaffAvatar member={m} size="lg" />
             <span>
               <strong>{m.name}</strong>
               <br />
