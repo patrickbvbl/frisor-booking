@@ -472,6 +472,25 @@ input[type="checkbox"] {
   border-left-color: var(--muted);
 }
 
+.cal-booking.in-gap {
+  left: 36%;
+  z-index: 2;
+  box-shadow: var(--shadow), 0 0 0 1px var(--surface);
+}
+
+/* Virketid: frisøren er fri, så den del vises lysere med striber. */
+.cal-gap {
+  position: absolute;
+  left: -3px;
+  right: 0;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: repeating-linear-gradient(135deg, var(--surface) 0 5px, var(--accent-soft) 5px 10px);
+  border-left: 3px dashed var(--accent);
+  pointer-events: none;
+}
+
 .cal-booking.selected {
   outline: 2px solid var(--accent);
 }

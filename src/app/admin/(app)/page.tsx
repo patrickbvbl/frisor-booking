@@ -109,18 +109,40 @@ export default async function CalendarPage({ searchParams }: Props) {
                     ))}
                     {cal.bookings
                       .filter((b) => b.booking.staffId === s.id)
-                      .map(({ booking, customer, service }) => {
+                      .map(({ booking, customer, service }, _, column) => {
                         const start = toZoned(booking.startsAt, tz).minutes;
                         const dur = (booking.endsAt.getTime() - booking.startsAt.getTime()) / 60000;
+                        const gap =
+                          booking.processingStartsAt && booking.processingEndsAt
+                            ? {
+                                top: ((booking.processingStartsAt.getTime() - booking.startsAt.getTime()) / 60000) * PX_PER_MIN,
+                                height: ((booking.processingEndsAt.getTime() - booking.processingStartsAt.getTime()) / 60000) * PX_PER_MIN,
+                              }
+                            : null;
+                        // Sidder kunden i en anden kundes virketid, rykkes den til højre, så begge kan ses.
+                        const inGap = column.some(
+                          (o) =>
+                            o.booking.id !== booking.id &&
+                            o.booking.status !== "cancelled" &&
+                            o.booking.processingStartsAt &&
+                            o.booking.processingEndsAt &&
+                            booking.startsAt >= o.booking.processingStartsAt &&
+                            booking.startsAt < o.booking.processingEndsAt,
+                        );
                         return (
                           <Link
                             key={booking.id}
                             href={`/admin?dato=${date}&valgt=${booking.id}`}
                             scroll={false}
-                            className={`cal-booking ${booking.status} ${booking.id === selectedId ? "selected" : ""}`}
+                            className={`cal-booking ${booking.status} ${booking.id === selectedId ? "selected" : ""} ${inGap ? "in-gap" : ""}`}
                             style={{ top: y(start) + 1, height: dur * PX_PER_MIN - 2 }}
                             title={`${clock(booking.startsAt, tz)} ${customer.name}, ${service.name} (${STATUS_LABEL[booking.status]})`}
                           >
+                            {gap && booking.status !== "cancelled" && (
+                              <span className="cal-gap" style={{ top: gap.top, height: gap.height }}>
+                                Virketid
+                              </span>
+                            )}
                             <strong>{clock(booking.startsAt, tz)}</strong> {customer.name}
                             <br />
                             {service.name}
@@ -152,6 +174,14 @@ export default async function CalendarPage({ searchParams }: Props) {
               </dd>
               <dt>Ydelse</dt>
               <dd>{selectedOk.service.name}</dd>
+              {selectedOk.booking.processingStartsAt && selectedOk.booking.processingEndsAt && (
+                <>
+                  <dt>Virketid</dt>
+                  <dd>
+                    {clock(selectedOk.booking.processingStartsAt, tz)} til {clock(selectedOk.booking.processingEndsAt, tz)}
+                  </dd>
+                </>
+              )}
               <dt>Frisør</dt>
               <dd>{selectedOk.staff.name}</dd>
               <dt>Telefon</dt>

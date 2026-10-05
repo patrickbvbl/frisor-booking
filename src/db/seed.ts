@@ -12,11 +12,21 @@ export async function seedDemo(db: Db, slug = "demo") {
     .returning();
 
   await db.insert(services).values([
-    { salonId: salon.id, name: "Herreklip", durationMin: 30, priceOre: 32500, depositOre: 0 },
-    { salonId: salon.id, name: "Dameklip", durationMin: 45, priceOre: 49500, depositOre: 10000 },
-    { salonId: salon.id, name: "Børneklip (under 12 år)", durationMin: 30, priceOre: 22500, depositOre: 0 },
-    { salonId: salon.id, name: "Farve og klip", durationMin: 120, priceOre: 129500, depositOre: 30000 },
-    { salonId: salon.id, name: "Skægtrim", durationMin: 15, priceOre: 15000, depositOre: 0 },
+    { salonId: salon.id, name: "Herreklip", durationMin: 30, priceOre: 32500, depositOre: 0, rebookWeeks: 4 },
+    { salonId: salon.id, name: "Dameklip", durationMin: 45, priceOre: 49500, depositOre: 10000, rebookWeeks: 8 },
+    { salonId: salon.id, name: "Børneklip (under 12 år)", durationMin: 30, priceOre: 22500, depositOre: 0, rebookWeeks: 6 },
+    // Farven påføres i 30 min og virker i 45 min, hvor frisøren kan tage en anden kunde.
+    {
+      salonId: salon.id,
+      name: "Farve og klip",
+      durationMin: 120,
+      priceOre: 129500,
+      depositOre: 30000,
+      processingAfterMin: 30,
+      processingMin: 45,
+      rebookWeeks: 8,
+    },
+    { salonId: salon.id, name: "Skægtrim", durationMin: 15, priceOre: 15000, depositOre: 0, rebookWeeks: 3 },
   ]);
 
   const team = await db

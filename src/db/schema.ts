@@ -48,6 +48,12 @@ export const services = pgTable("services", {
   durationMin: integer("duration_min").notNull(),
   priceOre: integer("price_ore").notNull(),
   depositOre: integer("deposit_ore").notNull().default(0),
+  // Virketid, fx mens farven sidder. Frisøren arbejder processingAfterMin minutter, så er hun fri i processingMin minutter
+  // og kan tage en anden kunde imens, og så arbejder hun resten af tiden. 0 = ingen virketid.
+  processingAfterMin: integer("processing_after_min").notNull().default(0),
+  processingMin: integer("processing_min").notNull().default(0),
+  // Hvor mange uger der typisk går til næste besøg. Bruges til genbooking, når kunden ikke har en fast rytme endnu.
+  rebookWeeks: integer("rebook_weeks"),
   active: boolean("active").notNull().default(true),
 });
 
@@ -61,6 +67,9 @@ export const customers = pgTable(
     email: text("email"),
     // Salonens egne noter, fx farveformel. Kan komme med fra import.
     note: text("note"),
+    // Kunden har sagt ja til en SMS, når det er tid til næste besøg. SMS-markedsføring kræver samtykke.
+    rebookOptIn: boolean("rebook_opt_in").notNull().default(false),
+    rebookRemindedAt: timestamp("rebook_reminded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("customers_salon_phone_idx").on(t.salonId, t.phone)],
@@ -86,6 +95,9 @@ export const bookings = pgTable(
     customerId: integer("customer_id").notNull().references(() => customers.id),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    // Virketid inden for bookingen, hvor frisøren er fri til en anden kunde. Kopieret fra ydelsen ved booking.
+    processingStartsAt: timestamp("processing_starts_at", { withTimezone: true }),
+    processingEndsAt: timestamp("processing_ends_at", { withTimezone: true }),
     status: text("status").$type<BookingStatus>().notNull(),
     priceOre: integer("price_ore").notNull(),
     depositOre: integer("deposit_ore").notNull().default(0),

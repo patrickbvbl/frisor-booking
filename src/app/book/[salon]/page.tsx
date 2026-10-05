@@ -174,6 +174,9 @@ export default async function BookPage({ params, searchParams }: Props) {
                   Besked til frisøren (valgfri)
                   <textarea name="note" rows={2} />
                 </label>
+                <label className="row small" style={{ fontWeight: "normal" }}>
+                  <input name="rebookOptIn" type="checkbox" /> Send mig en SMS, når det er tid til næste besøg
+                </label>
                 {service.depositOre > 0 ? (
                   <button className="mp full" type="submit">Book og betal depositum med MobilePay</button>
                 ) : (

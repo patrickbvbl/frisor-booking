@@ -7,6 +7,7 @@ import { toZoned } from "@/lib/time";
 const KIND: Record<string, string> = { confirmation: "Bekræftelse", reminder: "Påmindelse", cancellation: "Aflysning",
   waitlist: "Venteliste",
   waitlist_offer: "Ledig tid",
+  rebook: "Genbooking",
 };
 
 export default async function SmsPage() {
