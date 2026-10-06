@@ -27,6 +27,33 @@ const color = z.string().regex(/^#[0-9a-f]{6}$/i);
 const text = (max: number) => z.string().max(max).default("");
 const imageId = z.number().int().positive().nullable().default(null);
 
+/**
+ * Finder adressen på kortet i den kode, Google Maps giver under Del, Integrer et kort.
+ * Vi gemmer kun adressen og laver selv iframen, så salonen ikke kan lægge anden HTML ind på siden.
+ * Tager også imod selve adressen. Giver null, hvis det ikke er et indlejret Google Maps kort.
+ */
+export function mapEmbedUrl(input: string): string | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const src = raw.startsWith("<") ? raw.match(/\ssrc\s*=\s*["']([^"']+)["']/i)?.[1] : raw;
+  if (!src) return null;
+  let url: URL;
+  try {
+    url = new URL(src.replace(/&amp;/g, "&"));
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || !["www.google.com", "google.com", "maps.google.com"].includes(url.hostname)) return null;
+  if (url.pathname !== "/maps/embed" || url.username || url.password || url.port) return null;
+  const clean = `https://www.google.com/maps/embed${url.search}`;
+  return clean.length <= 4000 ? clean : null;
+}
+
+const mapUrl = z
+  .string()
+  .default("")
+  .refine((v) => v === "" || mapEmbedUrl(v) === v);
+
 export const BLOCKS = {
   hero: {
     label: "Forside med logo og billede",
@@ -61,6 +88,10 @@ export const BLOCKS = {
   contact: {
     label: "Kontakt og adresse",
     schema: z.object({ heading: text(80), showMap: z.boolean().default(true) }),
+  },
+  map: {
+    label: "Kort fra Google Maps",
+    schema: z.object({ heading: text(80), mapUrl }),
   },
 } as const;
 

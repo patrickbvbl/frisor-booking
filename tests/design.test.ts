@@ -9,6 +9,7 @@ import {
   contrast,
   defaultDesign,
   groupServices,
+  mapEmbedUrl,
   moveBlock,
   openingHours,
   parseDesign,
@@ -67,6 +68,29 @@ describe("design af bookingsiden", () => {
     expect(hero.props).toMatchObject({ title: "", subtitle: "" });
     d = updateBlock(d, "forside", { title: "Salon Saks" });
     expect(d.blocks.find((b) => b.id === "forside")!.props).toMatchObject({ title: "Salon Saks" });
+  });
+
+  it("tager kun adressen fra Google Maps' kode og afviser alt andet", () => {
+    const code =
+      '<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!3m3!1d2249!2d12.55!3d55.69" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
+    const url = "https://www.google.com/maps/embed?pb=!1m18!1m12!3m3!1d2249!2d12.55!3d55.69";
+    expect(mapEmbedUrl(code)).toBe(url);
+    expect(mapEmbedUrl(url)).toBe(url);
+    expect(mapEmbedUrl('<iframe src="https://evil.example/maps/embed?pb=1"></iframe>')).toBeNull();
+    expect(mapEmbedUrl('<iframe src="javascript:alert(1)"></iframe>')).toBeNull();
+    expect(mapEmbedUrl("http://www.google.com/maps/embed?pb=1")).toBeNull();
+    expect(mapEmbedUrl("https://www.google.com.evil.dk/maps/embed?pb=1")).toBeNull();
+    expect(mapEmbedUrl("https://maps.app.goo.gl/abc")).toBeNull();
+    expect(mapEmbedUrl("<script>alert(1)</script>")).toBeNull();
+
+    let d = addBlock(defaultDesign(), "map");
+    const id = d.blocks.at(-1)!.id;
+    d = updateBlock(d, id, { heading: "Find os", mapUrl: url });
+    expect(d.blocks.at(-1)!.props).toMatchObject({ heading: "Find os", mapUrl: url });
+    // Rå HTML gemmes aldrig, kun den rene adresse.
+    d = updateBlock(d, id, { mapUrl: code });
+    expect(d.blocks.at(-1)!.props).toMatchObject({ mapUrl: url });
+    expect(parseDesign(JSON.parse(JSON.stringify(d))).blocks.at(-1)!.type).toBe("map");
   });
 
   it("gør teksten læsbar uanset hvilke farver salonen vælger", () => {
