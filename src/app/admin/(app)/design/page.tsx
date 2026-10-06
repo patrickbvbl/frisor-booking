@@ -29,6 +29,7 @@ const FIELDS: Record<string, { label: string; long?: boolean; placeholder?: stri
   showDuration: { label: "Vis varighed" },
   showPrices: { label: "Vis priser" },
   showMap: { label: "Vis link til kort" },
+  mapUrl: { label: "Kode fra Google Maps", long: true, placeholder: '<iframe src="https://www.google.com/maps/embed?pb=..."></iframe>' },
 };
 
 export default async function DesignPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -165,6 +166,11 @@ function BlockEditor({ block, first, last }: { block: Block; first: boolean; las
       )}
       {block.type === "contact" && (
         <p className="muted small" style={{ margin: 0 }}>Viser salonens adresse og telefonnummer.</p>
+      )}
+      {block.type === "map" && (
+        <p className="muted small" style={{ margin: 0 }}>
+          Find salonen på Google Maps, tryk <strong>Del</strong>, vælg <strong>Integrer et kort</strong> og tryk <strong>Kopiér HTML</strong>. Sæt koden ind herunder og tryk Gem.
+        </p>
       )}
       {fields.length > 0 && (
         // Nøglen følger indholdet, så felterne viser det gemte, når React nulstiller formularen efter at have gemt.

@@ -3,7 +3,7 @@ import type { Salon, Service, Staff } from "@/db/schema";
 import { displayPhone, kr } from "@/lib/format";
 import { minutesToHhmm } from "@/lib/time";
 import { StaffAvatar } from "@/app/staff-avatar";
-import { imageUrl, type Block, type BlockProps, type CategoryGroup, type OpeningDay } from "@/lib/design";
+import { imageUrl, mapEmbedUrl, type Block, type BlockProps, type CategoryGroup, type OpeningDay } from "@/lib/design";
 
 const WEEKDAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
 
@@ -53,6 +53,8 @@ function BlockView({ block, data, children }: { block: Block; data: PageData; ch
       return <HoursBlock props={block.props} opening={data.opening} />;
     case "contact":
       return <ContactBlock props={block.props} salon={data.salon} />;
+    case "map":
+      return <MapBlock props={block.props} salon={data.salon} />;
   }
 }
 
@@ -208,6 +210,25 @@ function ContactBlock({ props, salon }: { props: BlockProps<"contact">; salon: S
           </span>
         )}
       </div>
+    </section>
+  );
+}
+
+function MapBlock({ props, salon }: { props: BlockProps<"map">; salon: Salon }) {
+  // Adressen er tjekket, da den blev gemt, men vi tjekker igen, så kun Google Maps kan vises her.
+  const src = props.mapUrl && mapEmbedUrl(props.mapUrl);
+  if (!src) return null;
+  return (
+    <section className="block">
+      {props.heading && <h2>{props.heading}</h2>}
+      <iframe
+        className="map-embed"
+        src={src}
+        title={`Kort over ${salon.name}`}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        allowFullScreen
+      />
     </section>
   );
 }

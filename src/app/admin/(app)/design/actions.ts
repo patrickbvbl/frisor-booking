@@ -15,6 +15,7 @@ import {
   removeBlock,
   updateBlock,
   updateTheme,
+  mapEmbedUrl,
   type BlockType,
   type Design,
 } from "@/lib/design";
@@ -101,7 +102,14 @@ export async function saveBlockAction(formData: FormData) {
     const replaced: (number | null)[] = [];
     for (const [key, current] of Object.entries(block.props)) {
       if (typeof current === "boolean") props[key] = formData.get(key) === "on";
-      else if (typeof current === "string") props[key] = str(formData.get(key)).trim();
+      else if (key === "mapUrl") {
+        const pasted = str(formData.get(key)).trim();
+        const url = pasted ? mapEmbedUrl(pasted) : "";
+        if (url === null) {
+          fail("Vi kunne ikke finde et kort i koden. Gå til Google Maps, tryk Del, vælg Integrer et kort og kopiér HTML.", `blok-${id}`);
+        }
+        props[key] = url;
+      } else if (typeof current === "string") props[key] = str(formData.get(key)).trim();
       else {
         const file = formData.get(key);
         if (formData.get(`${key}Remove`) === "on") {
