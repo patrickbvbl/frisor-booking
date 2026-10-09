@@ -2,17 +2,25 @@ import type { Db } from "./client";
 import { and, eq } from "drizzle-orm";
 import { salons, serviceCategories, services, staff, workingHours, type Salon } from "./schema";
 
+const DEMO_PHONE = "+4535362814";
+
 /** Opretter en demosalon med tre frisører og et udvalg af ydelser. Gør ingenting hvis den findes. */
 export async function seedDemo(db: Db, slug = "demo") {
   const existing = await db.query.salons.findFirst({ where: (s, { eq }) => eq(s.slug, slug) });
   if (existing) {
-    if (slug === "demo") await seedDemoCategories(db, existing);
+    if (slug === "demo") {
+      await seedDemoCategories(db, existing);
+      if (existing.phone === "+4512345678") {
+        await db.update(salons).set({ phone: DEMO_PHONE }).where(eq(salons.id, existing.id));
+        return { ...existing, phone: DEMO_PHONE };
+      }
+    }
     return existing;
   }
 
   const [salon] = await db
     .insert(salons)
-    .values({ slug, name: "Salon Saks", phone: "+4512345678", address: "Nørrebrogade 1, 2200 København N" })
+    .values({ slug, name: "Salon Saks", phone: DEMO_PHONE, address: "Nørrebrogade 1, 2200 København N" })
     .returning();
 
   await db.insert(services).values([
