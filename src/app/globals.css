@@ -865,6 +865,11 @@ th {
   font-family: var(--font-body);
 }
 
+/* Indlejret på salonens hjemmeside følger rammen indholdets højde, så siden må ikke selv fylde skærmen. */
+html.indlejret .salon-page {
+  min-height: 0;
+}
+
 .salon-page h1,
 .salon-page h2,
 .salon-page h3 {
@@ -1407,4 +1412,38 @@ td a[href^="tel:"] {
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-thickness: 2px;
+}
+
+/* Admin: kode til salonens egen hjemmeside */
+
+.embed-options {
+  display: grid;
+  gap: 16px;
+}
+
+.copy-code {
+  position: relative;
+}
+
+.copy-code textarea {
+  font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding-right: 88px;
+  resize: none;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--bg);
+}
+
+.copy-code button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.embed-preview {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
 }

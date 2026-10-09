@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/admin/venteliste", label: "Venteliste" },
   { href: "/admin/indstillinger", label: "Ydelser og medarbejdere" },
   { href: "/admin/design", label: "Bookingside" },
+  { href: "/admin/hjemmeside", label: "Hjemmeside" },
   { href: "/admin/sms", label: "SMS" },
 ];
 
