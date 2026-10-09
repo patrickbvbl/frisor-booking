@@ -1,20 +1,10 @@
-/*
- * Frisør Booking på salonens egen hjemmeside.
- *
- * Indlejret i siden:
- *   <div data-frisor-booking="demo"></div>
- *   <script src="https://.../embed.js" async></script>
- *
- * Knap der åbner bookingen i et vindue oven på siden. Linket virker også uden scriptet:
- *   <a href="https://.../book/demo" data-frisor-booking-popup>Book tid</a>
- */
+/* frisor-booking embed */
 (function () {
   if (window.__frisorBooking) {
     window.__frisorBooking.scan();
     return;
   }
 
-  // Nogle hjemmesidebyggere indsætter scriptet på en måde, hvor currentScript er tom. Så finder vi det på navnet.
   var script = document.currentScript || document.querySelector('script[src*="/embed.js"]');
   var origin = script ? new URL(script.src, location.href).origin : location.origin;
   var MSG = "frisor-booking";
@@ -37,7 +27,6 @@
     if (el.__frisorBooking) return;
     el.__frisorBooking = true;
     var f = makeFrame(bookingUrl(el.getAttribute("data-frisor-booking")));
-    // Højden passes løbende til indholdet. Indtil første besked giver vi plads nok til, at siden ikke hopper meget.
     f.style.height = (el.getAttribute("data-hoejde") || "720") + "px";
     f.setAttribute("scrolling", "no");
     el.appendChild(f);
@@ -52,7 +41,6 @@
     overlay = overlayFrame = null;
     document.documentElement.style.overflow = pageOverflow;
     frames = frames.filter(function (x) { return x.inline; });
-    // Fokus tilbage på knappen, så tastatur- og skærmlæserbrugere står hvor de var.
     if (opener && opener.focus) opener.focus();
     opener = null;
   }
@@ -101,7 +89,6 @@
       var slug = el.getAttribute("data-frisor-booking-popup");
       var url = slug ? bookingUrl(slug) : el.href;
       if (!url) return;
-      // Ctrl-klik og lignende åbner stadig linket i en ny fane.
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
       e.preventDefault();
       openPopup(url);
@@ -121,9 +108,7 @@
     if (!hit.inline) return;
     if (e.data.height) hit.frame.style.height = Math.ceil(e.data.height) + "px";
     var top = hit.frame.getBoundingClientRect().top;
-    // Et link til et sted i bookingen, fx en kategori. Rammen kan ikke selv rulle, så det gør hjemmesiden.
     if (typeof e.data.anchor === "number") window.scrollBy({ top: top + e.data.anchor - 16, behavior: "smooth" });
-    // Kunden er gået et trin videre. Er toppen af bookingen rullet ud af syne, ruller vi tilbage til den.
     else if (e.data.navigated && top < 0) window.scrollBy({ top: top - 16, behavior: "smooth" });
   });
 

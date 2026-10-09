@@ -187,7 +187,7 @@ export default async function BookPage({ params, searchParams }: Props) {
                 </label>
                 <label>
                   Mobilnummer
-                  <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="12 34 56 78" />
+                  <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" />
                 </label>
                 <label>
                   E-mail (valgfri)
@@ -322,7 +322,7 @@ async function TimePicker(props: {
           </label>
           <label>
             Mobilnummer
-            <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="12 34 56 78" />
+            <input name="phone" type="tel" required inputMode="tel" autoComplete="tel" />
           </label>
           <button className="full" type="submit">Skriv mig på ventelisten</button>
         </form>
