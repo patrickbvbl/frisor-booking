@@ -14,7 +14,8 @@
     return;
   }
 
-  var script = document.currentScript;
+  // Nogle hjemmesidebyggere indsætter scriptet på en måde, hvor currentScript er tom. Så finder vi det på navnet.
+  var script = document.currentScript || document.querySelector('script[src*="/embed.js"]');
   var origin = script ? new URL(script.src, location.href).origin : location.origin;
   var MSG = "frisor-booking";
   var frames = [];
@@ -43,18 +44,23 @@
     frames.push({ frame: f, inline: true });
   }
 
-  var overlay, overlayFrame;
+  var overlay, overlayFrame, opener, pageOverflow;
 
   function closePopup() {
     if (!overlay) return;
     overlay.remove();
     overlay = overlayFrame = null;
-    document.documentElement.style.overflow = "";
+    document.documentElement.style.overflow = pageOverflow;
     frames = frames.filter(function (x) { return x.inline; });
+    // Fokus tilbage på knappen, så tastatur- og skærmlæserbrugere står hvor de var.
+    if (opener && opener.focus) opener.focus();
+    opener = null;
   }
 
   function openPopup(url) {
     closePopup();
+    opener = document.activeElement;
+    pageOverflow = document.documentElement.style.overflow;
     overlay = document.createElement("div");
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
@@ -111,12 +117,14 @@
     if (e.origin !== origin || !e.data || e.data.type !== MSG) return;
     var hit = frames.filter(function (x) { return x.frame.contentWindow === e.source; })[0];
     if (!hit) return;
-    if (e.data.height && hit.inline) hit.frame.style.height = Math.ceil(e.data.height) + "px";
+    if (e.data.escape && !hit.inline) return closePopup();
+    if (!hit.inline) return;
+    if (e.data.height) hit.frame.style.height = Math.ceil(e.data.height) + "px";
+    var top = hit.frame.getBoundingClientRect().top;
+    // Et link til et sted i bookingen, fx en kategori. Rammen kan ikke selv rulle, så det gør hjemmesiden.
+    if (typeof e.data.anchor === "number") window.scrollBy({ top: top + e.data.anchor - 16, behavior: "smooth" });
     // Kunden er gået et trin videre. Er toppen af bookingen rullet ud af syne, ruller vi tilbage til den.
-    if (e.data.navigated && hit.inline) {
-      var top = hit.frame.getBoundingClientRect().top;
-      if (top < 0) window.scrollBy({ top: top - 16, behavior: "smooth" });
-    }
+    else if (e.data.navigated && top < 0) window.scrollBy({ top: top - 16, behavior: "smooth" });
   });
 
   document.addEventListener("keydown", function (e) {
